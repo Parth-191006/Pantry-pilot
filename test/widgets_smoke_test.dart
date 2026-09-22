@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -9,11 +7,12 @@ import 'package:pantry_pilot/main.dart';
 
 void main() {
   testWidgets('bootstraps, shows seeded recipes, toggles dark mode', (tester) async {
-    final controller =
-        AppController(store: GroceryStore(), parser: const IngredientParser());
-    await controller.bootstrap(
-      storagePath: Directory.systemTemp.createTempSync('pantry_test').path,
+    // In-memory store: no dart:io inside the fake-async widget-test zone.
+    final controller = AppController(
+      store: GroceryStore(inMemory: true),
+      parser: const IngredientParser(),
     );
+    await controller.bootstrap();
 
     await tester.pumpWidget(PantryPilotApp(controller: controller));
     await tester.pumpAndSettle(const Duration(seconds: 2));
