@@ -1,0 +1,54 @@
+name: Build Android APK
+
+# Builds a release APK on every push to main/master, plus on-demand from the
+# Actions tab. The APK is uploaded as a downloadable artifact — no local
+# Flutter install required.
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # AGP 8 needs JDK 17
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      # The repo ships Dart sources only — this generates the android/ platform
+      # folder (Gradle wrapper, manifest, icons) inside CI. Idempotent: skips
+      # files that already exist.
+      - name: Generate Android platform folder
+        run: flutter create . --platforms android --project-name pantry_pilot
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze (non-blocking)
+        run: flutter analyze
+        continue-on-error: true
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pantry-pilot-apk-${{ github.run_number }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error

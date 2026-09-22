@@ -1,0 +1,8 @@
+.dart_tool/
+.packages
+build/
+.idea/
+*.iml
+.freebuff/
+ios/Pods/
+android/.gradle/

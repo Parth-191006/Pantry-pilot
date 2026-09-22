@@ -1,0 +1,23 @@
+name: pantry_pilot
+description: Offline-first Recipe → Grocery List converter with a polished, animated UI.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Offline-first local storage. Pure-Dart core, tiny footprint, no codegen
+  # needed here (we persist plain maps, so there are no TypeAdapters).
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
