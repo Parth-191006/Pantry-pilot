@@ -1,12 +1,16 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
+import '../app_info.dart';
 import '../app_scope.dart';
 import '../data/models.dart';
 import '../ui/animations.dart';
 import 'recipe_detail_screen.dart';
+import 'settings_screen.dart';
 
-/// Entry screen — recipe library. Everything runs from local storage, so the
-/// grid is instant even in airplane mode.
+/// Entry screen — recipe library. Instant, offline, and a bit livelier:
+/// gradient hero with floating food art, category legend, rich cards.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -18,34 +22,29 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pantry Pilot'),
+        title: Text(appName),
         actions: [
           IconButton(
-            tooltip: 'Toggle dark mode',
-            // Animated swap between sun/moon icons.
-            icon: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (child, anim) =>
-                  RotationTransition(turns: anim, child: FadeTransition(opacity: anim, child: child)),
-              child: Icon(
-                app.darkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                key: ValueKey(app.darkMode),
-              ),
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.of(context).push(
+              sharedAxisRoute(page: const SettingsScreen()),
             ),
-            onPressed: app.toggleDarkMode,
           ),
         ],
       ),
       body: recipes.isEmpty
           ? const _EmptyState()
           : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-              itemCount: recipes.length + 1,
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
+              itemCount: recipes.length + 2,
               itemBuilder: (context, i) {
-                if (i == 0) return const _HeaderBlock();
-                final recipe = recipes[i - 1];
+                if (i == 0) return const _HeroCard();
+                if (i == 1) return _LibraryHeader(count: recipes.length);
+                final recipe = recipes[i - 2];
                 return StaggeredEntrance(
-                  index: i - 1,
+                  index: i - 2,
+                  baseDelay: const Duration(milliseconds: 160),
                   child: _RecipeCard(recipe: recipe),
                 );
               },
@@ -70,23 +69,166 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _HeaderBlock extends StatelessWidget {
-  const _HeaderBlock();
+// ---------------------------------------------------------------------------
+// Hero: brand gradient + floating food art + one-line pitch.
+// ---------------------------------------------------------------------------
+
+class _HeroCard extends StatefulWidget {
+  const _HeroCard();
+
+  @override
+  State<_HeroCard> createState() => _HeroCardState();
+}
+
+class _HeroCardState extends State<_HeroCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _float = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2600),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _float.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _float.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _float,
+        builder: (context, child) {
+          final t = _float.value;
+          return Container(
+            height: 168,
+            margin: const EdgeInsets.only(top: 8, bottom: 22),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: dark
+                    ? [scheme.primary.withValues(alpha: 0.55), scheme.primaryContainer.withValues(alpha: 0.25)]
+                    : [scheme.primary, scheme.tertiary],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: scheme.primary.withValues(alpha: dark ? 0.2 : 0.35),
+                  blurRadius: 22,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Floating food art — gentle sine bob, seeded scatter.
+                Positioned(
+                  top: 14 + 6 * math.sin(t * math.pi),
+                  right: 26,
+                  child: Transform.rotate(
+                    angle: -0.18,
+                    child: const Text('🍅', style: TextStyle(fontSize: 34)),
+                  ),
+                ),
+                Positioned(
+                  bottom: 16 + 5 * math.sin(t * math.pi + 1.4),
+                  right: 84,
+                  child: Transform.rotate(
+                    angle: 0.22,
+                    child: const Text('🧄', style: TextStyle(fontSize: 28)),
+                  ),
+                ),
+                Positioned(
+                  top: 52 + 7 * math.sin(t * math.pi + 2.8),
+                  right: 132,
+                  child: Transform.rotate(
+                    angle: 0.1,
+                    child: const Text('🥑', style: TextStyle(fontSize: 30)),
+                  ),
+                ),
+                Positioned(
+                  bottom: 24 + 4 * math.sin(t * math.pi + 0.7),
+                  left: 22,
+                  child: Text('🥬', style: TextStyle(fontSize: 40)),
+                ),
+                // Copy.
+                Positioned(
+                  left: 76,
+                  top: 30,
+                  right: 130,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Cook it,\nthen shop for it.',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          height: 1.15,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Any recipe → tidy aisle-by-aisle list.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _LibraryHeader extends StatelessWidget {
+  const _LibraryHeader({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(top: 12, bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.only(bottom: 12, left: 2),
+      child: Row(
         children: [
-          Text('Cook it, then shop for it.', style: text.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 6),
           Text(
-            'Pick a recipe and Pantry Pilot turns it into a categorized grocery list — fully offline.',
-            style: text.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            'Your recipes',
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '$count',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
             ),
           ),
         ],
@@ -100,9 +242,17 @@ class _RecipeCard extends StatelessWidget {
 
   final Recipe recipe;
 
+  // Per-recipe accent so the shelf feels colorful but coherent.
+  static const _accents = [
+    Color(0xFFE65100), Color(0xFF2E7D32), Color(0xFF1565C0),
+    Color(0xFF6A1B9A), Color(0xFFB71C1C), Color(0xFF00695C),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final accent = _accents[recipe.id.hashCode.abs() % _accents.length];
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Card(
@@ -112,7 +262,7 @@ class _RecipeCard extends StatelessWidget {
             sharedAxisRoute(page: RecipeDetailScreen(recipe: recipe)),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 Container(
@@ -120,12 +270,13 @@ class _RecipeCard extends StatelessWidget {
                   height: 56,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
+                    color: accent.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: accent.withValues(alpha: 0.35)),
                   ),
                   child: Text(recipe.emoji, style: const TextStyle(fontSize: 28)),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,11 +285,19 @@ class _RecipeCard extends StatelessWidget {
                           style: theme.textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 4),
-                      Text(
-                        '${recipe.ingredients.length} ingredients',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
-                        ),
+                      Row(
+                        children: [
+                          Icon(Icons.list_alt,
+                              size: 14,
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${recipe.ingredients.length} ingredients',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

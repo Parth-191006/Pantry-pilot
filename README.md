@@ -43,6 +43,7 @@ flutter test
 ```
 lib/
 ├── main.dart                  # bootstrap: Hive init → controller → MaterialApp
+├── app_info.dart              # name/version/description constants
 ├── app_scope.dart             # InheritedNotifier DI (no provider package)
 ├── theme/
 │   └── app_theme.dart         # Material 3, light+dark from ONE seed color
@@ -54,13 +55,18 @@ lib/
 ├── ui/
 │   └── animations.dart        # ALL animation primitives (self-contained)
 └── screens/
-    ├── home_screen.dart           # recipe library + paste-a-recipe sheet
+    ├── splash_screen.dart         # animated brand splash → fades into Home
+    ├── home_screen.dart           # hero + recipe library + paste-a-recipe sheet
     ├── recipe_detail_screen.dart  # raw recipe + "Generate grocery list" CTA
-    └── grocery_list_screen.dart   # the payoff: categories, check-off, confetti
+    ├── grocery_list_screen.dart   # the payoff: categories, check-off, confetti
+    └── settings_screen.dart       # dark mode, About, data controls
 ```
 
-**Flow:** Home → (shared-axis push) → Recipe Detail → tap CTA → parser runs →
-(shared-axis push) → Grocery List, with staggered section entrance.
+**Flow:** Splash (logo/tagline animation) → fade → Home (gradient hero with
+floating food art) → (shared-axis push) → Recipe Detail → tap CTA → parser
+runs → (shared-axis push) → Grocery List, with staggered section entrance.
+Settings (⚙️ corner on Home) holds dark mode, the About text, and data
+controls.
 
 ## Animation hookup guide
 

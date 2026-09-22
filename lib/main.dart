@@ -4,6 +4,7 @@ import 'app_scope.dart';
 import 'data/ingredient_parser.dart';
 import 'data/store.dart';
 import 'screens/home_screen.dart';
+import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -33,7 +34,7 @@ class PantryPilotApp extends StatelessWidget {
             theme: AppTheme.light(),
             darkTheme: AppTheme.dark(),
             themeMode: controller.darkMode ? ThemeMode.dark : ThemeMode.light,
-            home: const HomeScreen(),
+            home: const SplashScreen(),
           );
         },
       ),
