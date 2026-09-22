@@ -59,6 +59,14 @@ jobs:
           tail -60 test_output.log >> "$GITHUB_STEP_SUMMARY" || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
+      # Surface the failing test detail as an error annotation (readable via
+      # the API without authentication).
+      - name: Dump test failures to annotations
+        if: failure()
+        run: |
+          TAIL=$(tail -80 test_output.log | sed ':a;N;$!ba;s/\n/%0A/g')
+          echo "::error::TESTLOG::$TAIL"
+
       - name: Build release APK
         run: flutter build apk --release
 
