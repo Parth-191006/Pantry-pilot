@@ -143,7 +143,9 @@ class GroceryStore {
       final box = _mem(name);
       box[key] = callback(box[key]);
     } else {
-      await Hive.box(name).update(key, callback);
+      // Box.update() isn't available in hive 2.x — get+put is equivalent.
+      final box = Hive.box(name);
+      await box.put(key, callback(box.get(key)));
     }
   }
 
@@ -177,8 +179,13 @@ class AppController extends ChangeNotifier {
   bool darkMode = false;
 
   bool get hasList => list != null && list!.totalItems > 0;
-  int get checkedCount =>
-      list?.sections.fold(0, (s, sec) => s + sec.items.where((i) => i.checked).length) ?? 0;
+
+  int get checkedCount {
+    final l = list;
+    if (l == null) return 0;
+    return l.sections.fold(0, (s, sec) => s + sec.items.where((i) => i.checked).length);
+  }
+
   int get totalCount => list?.totalItems ?? 0;
   double get progress => totalCount == 0 ? 0 : checkedCount / totalCount;
 
