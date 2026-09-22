@@ -168,15 +168,25 @@ class IngredientParser {
     'fresh coriander': 'Cilantro',
     'aubergine': 'Eggplant',
     'courgette': 'Zucchini',
-  };  static const List<_CatRule> _rules = [
-    // Narrowest rules first: "bell pepper" must beat the spice "pepper",
-    // and "chili powder" must beat the produce "chili".
+  };
+
+  // Narrowest rules first: "bell pepper" must beat the spice "pepper",
+  // and "chili powder" must beat the produce "chili".
+  static const List<_CatRule> _rules = [
     _CatRule(GroceryCategory.produce, ['bell']),
     _CatRule(GroceryCategory.spices, [
       'salt', 'pepper', 'cumin', 'paprika', 'turmeric', 'cinnamon', 'nutmeg',
       'oregano', 'thyme', 'rosemary', 'chili powder', 'cayenne', 'curry',
       'coriander powder', 'cardamom', 'cloves', 'bay leaf', 'chili flake',
       'vanilla', 'baking powder', 'baking soda', 'yeast',
+    ]),
+    _CatRule(GroceryCategory.dairy, [
+      'milk', 'butter', 'cheese', 'parmesan', 'mozzarella', 'cheddar', 'feta',
+      'yogurt', 'yoghurt', 'cream', 'egg', 'mayonnaise', 'mayo', 'ghee',
+    ]),
+    _CatRule(GroceryCategory.meat, [
+      'chicken', 'beef', 'pork', 'bacon', 'sausage', 'turkey', 'lamb',
+      'shrimp', 'salmon', 'fish', 'tuna', 'steak', 'ground meat', 'mince',
     ]),
     _CatRule(GroceryCategory.produce, [
       'onion', 'garlic', 'tomato', 'spinach', 'kale', 'lettuce', 'carrot',
