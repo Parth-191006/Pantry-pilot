@@ -69,9 +69,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1200));
     expect(find.text('Garlic Butter Pasta'), findsOneWidget);
 
-    // Back to All.
+    // Back to All. Pump past the full cascade (60ms × 10 cards + 420ms
+    // animation) so no StaggeredEntrance timers are pending at test end.
     await tester.tap(find.text('All'));
-    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(milliseconds: 1200));
+    await tester.pump(const Duration(milliseconds: 100));
     expect(controller.visibleRecipes.length, 10);
   });
 
