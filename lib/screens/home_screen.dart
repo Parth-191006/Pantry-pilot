@@ -54,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           : Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: _maxContentWidth),
+                constraints: const BoxConstraints(maxWidth: HomeScreen._maxContentWidth),
                 child: ListView.builder(
                   padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
                   itemCount: recipes.length + 2,
