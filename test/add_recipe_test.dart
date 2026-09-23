@@ -80,17 +80,16 @@ void main() {
     await pumpIntoHome(tester, RecipePilotApp(controller: controller));
 
     // Home → the beam-ringed "New recipe" action.
-    await tester.tap(find.byKey(const ValueKey('new_recipe_fab')));
-    await tester.pump(const Duration(milliseconds: 600));
-    await tester.pump(const Duration(milliseconds: 100));
+    await tapAndSettleRoute(tester, find.byKey(const ValueKey('new_recipe_fab')));
 
     // The save CTA must hug the bottom of the screen. Regression guard: a
     // bare `Center` in the bottom-sheet slot expands into the Scaffold's loose
     // height constraint, which floated the button over the middle of the form
     // (and swallowed taps meant for the fields underneath).
+    final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
     final ctaRect = tester.getRect(find.byKey(const ValueKey('save_recipe')));
-    expect(ctaRect.top, greaterThan(2200 / 2)); // well below the vertical middle
-    expect(ctaRect.bottom, lessThanOrEqualTo(1500));
+    expect(ctaRect.top, greaterThan(screen.height * 0.85)); // bottom-anchored
+    expect(ctaRect.bottom, lessThanOrEqualTo(screen.height + 0.5));
 
     // Typing the title suggests an emoji offline — no picker needed.
     await tester.enterText(
@@ -129,15 +128,13 @@ void main() {
     await controller.bootstrap();
     await pumpIntoHome(tester, RecipePilotApp(controller: controller));
 
-    await tester.tap(find.byKey(const ValueKey('new_recipe_fab')));
-    await tester.pump(const Duration(milliseconds: 600));
-    await tester.pump(const Duration(milliseconds: 100));
+    await tapAndSettleRoute(tester, find.byKey(const ValueKey('new_recipe_fab')));
 
     // Scroll the mode pills into view before tapping (the studio is a form, and
     // on a phone-sized surface the ingredients card can sit below the fold).
-    await tester.ensureVisible(find.text('Paste a block'));
+    await tester.ensureVisible(find.byKey(const ValueKey('mode_paste')));
     await tester.pump(const Duration(milliseconds: 150));
-    await tester.tap(find.text('Paste a block'));
+    await tester.tap(find.byKey(const ValueKey('mode_paste')));
     await tester.pump(const Duration(milliseconds: 250));
 
     await tester.ensureVisible(find.byKey(const ValueKey('bulk_paste')));
@@ -154,10 +151,21 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('split_bulk')));
     await tester.pump(const Duration(milliseconds: 250));
 
-    // Rows mode came back, pre-filled and editable.
+    // Rows mode came back, pre-filled and editable. Assert on each field's
+    // controller rather than `find.text`: a visible-but-unfocused TextField
+    // keeps its (opacity-0) hint mounted, so a text finder is ambiguous.
+    String rowText(int index) => tester
+        .widget<TextField>(find.byKey(ValueKey('ing_$index')))
+        .controller!
+        .text;
+
     expect(find.byKey(const ValueKey('ing_0')), findsOneWidget);
     expect(find.byKey(const ValueKey('ing_2')), findsOneWidget);
-    expect(find.text('2 cups spinach, chopped'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ing_3')), findsOneWidget); // spare row
+    expect(rowText(0), '2 cups spinach, chopped');
+    expect(rowText(1), '4 cloves garlic, minced');
+    expect(rowText(2), '1/2 cup parmesan cheese');
+    expect(rowText(3), isEmpty);
     await flushTimers(tester);
   });
 }

@@ -356,6 +356,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                         children: [
                           Expanded(
                             child: _ChoicePill(
+                              key: const ValueKey('mode_rows'),
                               label: 'One per line',
                               selected: !_pasteMode,
                               onTap: () => setState(() => _pasteMode = false),
@@ -364,6 +365,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: _ChoicePill(
+                              key: const ValueKey('mode_paste'),
                               label: 'Paste a block',
                               selected: _pasteMode,
                               onTap: () => setState(() => _pasteMode = true),
@@ -507,8 +509,11 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                   controller: _lines[i],
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
+                    // Prefixed with "e.g." so a hint can never be mistaken for
+                    // real content — a hint that reads like a filled row is
+                    // both worse UX and a trap for tests looking up the text.
                     hintText: i == 0
-                        ? '2 cups spinach, chopped'
+                        ? 'e.g. 2 cups spinach, chopped'
                         : 'Ingredient ${i + 1}',
                   ),
                 ),
@@ -640,6 +645,7 @@ class _SectionLabel extends StatelessWidget {
 /// the studio feels like the rest of the app.
 class _ChoicePill extends StatelessWidget {
   const _ChoicePill({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,

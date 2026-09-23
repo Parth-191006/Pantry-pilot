@@ -20,9 +20,7 @@ void main() {
     expect(find.text('Your recipes'), findsOneWidget);
 
     // Settings corner → settings page.
-    await tester.tap(find.byIcon(Icons.settings_outlined));
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pump(const Duration(milliseconds: 100));
+    await tapAndSettleRoute(tester, find.byIcon(Icons.settings_outlined));
 
     expect(find.text('Dark mode'), findsOneWidget);
     expect(find.text('Glow effects'), findsOneWidget);
@@ -76,14 +74,10 @@ void main() {
     await pumpIntoHome(tester, RecipePilotApp(controller: controller));
 
     // Home → recipe detail (the carousel mirrors this recipe, use the first).
-    await tester.tap(find.text('Garlic Butter Pasta').first);
-    await tester.pump(const Duration(milliseconds: 600));
-    await tester.pump(const Duration(milliseconds: 100));
+    await tapAndSettleRoute(tester, find.text('Garlic Butter Pasta').first);
 
     // Detail → generate list (220ms parse beat + 340ms shared-axis push).
-    await tester.tap(find.text('Generate grocery list'));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump(const Duration(milliseconds: 600));
+    await tapAndSettleRoute(tester, find.text('Generate grocery list'));
 
     expect(controller.totalCount, greaterThan(0));
     expect(controller.checkedCount, 0);

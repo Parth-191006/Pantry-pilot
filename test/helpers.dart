@@ -33,6 +33,28 @@ Future<void> pumpIntoHome(WidgetTester tester, RecipePilotApp app) async {
   await tester.pump(const Duration(milliseconds: 100));
 }
 
+/// Taps something that pushes a route, then drives that route's entrance
+/// transition to completion.
+///
+/// The naive `tap(); pump(600ms)` does NOT settle a route: a Flutter animation
+/// ticker stamps its start time on its *first* tick, so the frame produced by
+/// the first `pump(duration)` after a push shows the animation at elapsed 0.
+/// The page then sits mid-transition — the shared-axis route slides up from 6%
+/// of the screen height and scales from 0.98, so its widgets are ~24px lower
+/// than their resting place, taps can land on the wrong render object, and any
+/// geometry assertion reads the transient value.
+///
+/// The leading zero-duration pump eats that first tick; the following pumps
+/// cover routes pushed from a timer inside the tap (e.g. the 220ms parse beat
+/// before the grocery list opens) and then the 340ms transition itself.
+Future<void> tapAndSettleRoute(WidgetTester tester, Finder finder) async {
+  await tester.tap(finder);
+  await tester.pump(); // ticker's first tick lands here, at elapsed 0
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump(const Duration(milliseconds: 80));
+}
+
 /// Flush every pending entrance-stagger delay timer before the test ends.
 /// fake_async fails any test that finishes with live timers, and the stagger
 /// cascade (60ms × index + 420ms animation) builds more cards on a tall test
