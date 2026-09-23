@@ -5,8 +5,10 @@ import '../app_scope.dart';
 import '../data/store.dart';
 import '../ui/animations.dart';
 
-/// Settings hub: appearance, about, and data controls. Reached from the ⚙️
-/// corner on the home screen.
+/// Settings hub, redesigned as clean card containers: each card has a soft
+/// shadow, rounded corners, generous padding, an icon tile per row, and a
+/// custom accessible switch. Typography hierarchy: small-caps section
+/// headers → bold row titles → muted one-line descriptions.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -18,142 +20,134 @@ class SettingsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: StaggeredEntrance(
-        index: 0,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-          children: [
-            // ---- Appearance ----
-            _SectionLabel('Appearance'),
-            Card(
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    secondary: Icon(
-                      app.darkMode ? Icons.dark_mode : Icons.light_mode,
-                      color: scheme.primary,
-                    ),
-                    title: const Text('Dark mode'),
-                    subtitle: Text(
-                      app.darkMode ? 'On — easy on night eyes' : 'Off — bright and clean',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                    value: app.darkMode,
-                    onChanged: (_) => app.toggleDarkMode(),
-                  ),
-                ],
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        children: [
+          // ---- Preferences -----------------------------------------------
+          const _SectionLabel('Preferences'),
+          _SettingsCard(
+            children: [
+              _SwitchRow(
+                icon: app.darkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                tileColor: const Color(0xFF5C6BC0),
+                title: 'Dark mode',
+                description: app.darkMode
+                    ? 'On — easy on night-time eyes'
+                    : 'Off — bright, crisp and clean',
+                value: app.darkMode,
+                onChanged: (_) => app.toggleDarkMode(),
               ),
-            ),
-            const SizedBox(height: 20),
+              const _RowDivider(),
+              _SwitchRow(
+                icon: Icons.celebration_rounded,
+                tileColor: AppTheme.terracotta,
+                title: 'Celebrations',
+                description: 'Confetti when you finish the list',
+                value: app.celebrationsOn,
+                onChanged: (_) => app.toggleCelebrations(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
 
-            // ---- About ----
-            _SectionLabel('About'),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 54,
-                          height: 54,
-                          decoration: BoxDecoration(
-                            color: scheme.primaryContainer.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Center(
-                            child: Text('🥬', style: TextStyle(fontSize: 28)),
-                          ),
+          // ---- About ------------------------------------------------------
+          const _SectionLabel('About'),
+          _SettingsCard(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: scheme.primaryContainer.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(appName,
-                                  style: theme.textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w800)),
-                              Text('v$appVersion',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: scheme.onSurface.withValues(alpha: 0.55),
-                                  )),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      appDescription,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurface.withValues(alpha: 0.75),
-                        height: 1.45,
+                        child: const Center(child: Text('🥬', style: TextStyle(fontSize: 28))),
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        _Chip(icon: Icons.wifi_off, label: '100% offline'),
-                        const SizedBox(width: 8),
-                        _Chip(icon: Icons.lock_outline, label: 'Data stays on device'),
-                        const SizedBox(width: 8),
-                        _Chip(icon: Icons.bolt, label: 'No ads'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // ---- Data ----
-            _SectionLabel('Your data'),
-            Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: Icon(Icons.restart_alt, color: scheme.primary),
-                    title: const Text('Reset checked items'),
-                    subtitle: Text(
-                      'Uncheck everything on the current list',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                    onTap: () {
-                      app.resetChecked();
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('All items unchecked')),
-                      );
-                    },
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(appName,
+                                style: theme.textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w800)),
+                            Text('v$appVersion',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurface.withValues(alpha: 0.55),
+                                )),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const Divider(indent: 16, endIndent: 16),
-                  ListTile(
-                    leading: Icon(Icons.delete_sweep_outlined,
-                        color: scheme.error),
-                    title: Text('Clear grocery list',
-                        style: TextStyle(color: scheme.error)),
-                    subtitle: Text(
-                      'Removes the current list (recipes are kept)',
-                      style: theme.textTheme.bodySmall,
+                  const SizedBox(height: 14),
+                  Text(
+                    appDescription,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurface.withValues(alpha: 0.75),
+                      height: 1.45,
                     ),
-                    onTap: () => _confirmClear(context, app),
+                  ),
+                  const SizedBox(height: 14),
+                  const Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _Chip(icon: Icons.wifi_off, label: '100% offline'),
+                      _Chip(icon: Icons.lock_outline, label: 'Data stays on device'),
+                      _Chip(icon: Icons.bolt, label: 'No ads'),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 28),
-            Center(
-              child: Text(
-                'Made with 💚 for offline-first cooking',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.45),
-                ),
+          ),
+          const SizedBox(height: 22),
+
+          // ---- Data -------------------------------------------------------
+          const _SectionLabel('Your data'),
+          _SettingsCard(
+            children: [
+              _ActionRow(
+                icon: Icons.restart_alt_rounded,
+                tileColor: AppTheme.checkGreen,
+                title: 'Reset checked items',
+                description: 'Uncheck everything on the current list',
+                onTap: () {
+                  app.resetChecked();
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('All items unchecked')),
+                  );
+                },
+              ),
+              const _RowDivider(),
+              _ActionRow(
+                icon: Icons.delete_sweep_rounded,
+                tileColor: scheme.error,
+                destructive: true,
+                title: 'Clear grocery list',
+                description: 'Removes the current list (recipes are kept)',
+                onTap: () => _confirmClear(context, app),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+          Center(
+            child: Text(
+              'Made with 💚 for offline-first cooking',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurface.withValues(alpha: 0.45),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -186,6 +180,206 @@ class SettingsScreen extends StatelessWidget {
               );
             },
             child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Building blocks
+// ---------------------------------------------------------------------------
+
+/// Card container: soft shadow, rounded-xl equivalent, tight vertical rhythm.
+class _SettingsCard extends StatelessWidget {
+  const _SettingsCard({this.child, this.children});
+
+  final Widget? child;
+  final List<Widget>? children;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.45 : 0.6),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          // shadow-sm equivalent; nearly invisible in dark mode by design.
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.0 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child ??
+          (children != null
+              ? Column(children: children!)
+              : const SizedBox.shrink()),
+    );
+  }
+}
+
+/// Base row: colorful icon tile + title + muted description.
+class _SettingsRow extends StatelessWidget {
+  const _SettingsRow({
+    required this.icon,
+    required this.tileColor,
+    required this.title,
+    required this.description,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final Color tileColor;
+  final String title;
+  final String description;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: tileColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 21, color: tileColor),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: destructive ? scheme.error : scheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurface.withValues(alpha: 0.55),
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Switch row with a custom, accessible toggle: labelled, toggleable by
+/// tapping the whole row (Semantics →Switch, so screen readers announce it),
+/// with an animated thumb/track and the label dimming when off.
+class _SwitchRow extends StatelessWidget {
+  const _SwitchRow({
+    required this.icon,
+    required this.tileColor,
+    required this.title,
+    required this.description,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final Color tileColor;
+  final String title;
+  final String description;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Semantics(
+      toggled: value,
+      label: title,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => onChanged(!value),
+        child: Row(
+          children: [
+            Expanded(
+              child: _SettingsRow(
+                icon: icon,
+                tileColor: tileColor,
+                title: title,
+                description: description,
+              ),
+            ),
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: value ? 1.0 : 0.55,
+              child: Switch(value: value, onChanged: onChanged),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Tap-through row for destructive/data actions, with a chevron affordance.
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({
+    required this.icon,
+    required this.tileColor,
+    required this.title,
+    required this.description,
+    required this.onTap,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final Color tileColor;
+  final String title;
+  final String description;
+  final VoidCallback onTap;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Row(
+        children: [
+          Expanded(
+            child: _SettingsRow(
+              icon: icon,
+              tileColor: tileColor,
+              title: title,
+              description: description,
+              destructive: destructive,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Icon(Icons.chevron_right_rounded,
+                color: scheme.onSurface.withValues(alpha: 0.35)),
           ),
         ],
       ),
@@ -242,6 +436,26 @@ class _Chip extends StatelessWidget {
                 ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Hairline between rows inside a card, aligned with the text column.
+class _RowDivider extends StatelessWidget {
+  const _RowDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 70),
+      child: Divider(
+        height: 1,
+        thickness: 1,
+        color: Theme.of(context)
+            .colorScheme
+            .outlineVariant
+            .withValues(alpha: 0.5),
       ),
     );
   }

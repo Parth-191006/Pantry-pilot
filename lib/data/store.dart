@@ -17,6 +17,7 @@ class GroceryStore {
   static const _recipesBox = 'recipes';
   static const _listBox = 'grocery_list';
   static const _settingsBox = 'settings';
+  static const _celebrationsKey = 'celebrations';
 
   final bool _inMemory;
   final _memoryBoxes = <String, Map<dynamic, dynamic>>{};
@@ -111,6 +112,13 @@ class GroceryStore {
 
   Future<void> saveDarkMode(bool dark) => _put(_settingsBox, 'dark', dark);
 
+  /// Full-screen celebration toggle (defaults to ON).
+  Future<bool> loadCelebrations() async =>
+      _get(_settingsBox, _celebrationsKey, true) as bool;
+
+  Future<void> saveCelebrations(bool value) =>
+      _put(_settingsBox, _celebrationsKey, value);
+
   // ---- Unified Hive / in-memory primitives ----
 
   Future<void> _put(String name, dynamic key, dynamic value) async {
@@ -178,6 +186,10 @@ class AppController extends ChangeNotifier {
   GroceryListResult? list;
   bool darkMode = false;
 
+  /// Whether the full-screen confetti celebration plays when the list is
+  /// finished (Settings toggle; on by default).
+  bool celebrationsOn = true;
+
   bool get hasList => list != null && list!.totalItems > 0;
 
   int get checkedCount {
@@ -196,6 +208,7 @@ class AppController extends ChangeNotifier {
     await store.init(storagePath: storagePath);
     recipes = await store.loadRecipes();
     darkMode = await store.loadDarkMode();
+    celebrationsOn = await store.loadCelebrations();
     list = await store.loadList(parser);
     _rebuildChecked();
     notifyListeners();
@@ -219,15 +232,32 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// BUG FIX (ingredient meter): this used to mutate only [_checkedIds] and
+  /// never wrote the new checked flag back into [list]. Anything computing
+  /// progress from the model (section counters, the linear meter) drifted out
+  /// of sync with the checkbox visuals. Now the model is the single source of
+  /// truth: both are updated together BEFORE notifyListeners fires.
   Future<void> toggleItem(String id) async {
-    final current = _checkedIds.contains(id);
-    if (current) {
-      _checkedIds = {..._checkedIds}..remove(id);
-    } else {
-      _checkedIds = {..._checkedIds, id};
-    }
+    final next = !_checkedIds.contains(id);
+    _checkedIds =
+        next ? {..._checkedIds, id} : ({..._checkedIds}..remove(id));
+    list = _listWithChecked(id, next);
     notifyListeners();
-    await store.setItemChecked(id, !current); // fire-and-forget write
+    await store.setItemChecked(id, next); // fire-and-forget write
+  }
+
+  /// Immutable copy of [list] with one item's checked flag replaced.
+  GroceryListResult _listWithChecked(String id, bool checked) {
+    final l = list;
+    if (l == null) return GroceryListResult(sections: const []);
+    return GroceryListResult(sections: l.sections
+        .map((s) => GrocerySection(
+              category: s.category,
+              items: s.items
+                  .map((i) => i.id == id ? i.copyWith(checked: checked) : i)
+                  .toList(),
+            ))
+        .toList());
   }
 
   Future<void> deleteItem(String id) async {
@@ -240,6 +270,7 @@ class AppController extends ChangeNotifier {
         .where((s) => s.items.isNotEmpty)
         .toList();
     list = GroceryListResult(sections: sections);
+    _rebuildChecked(); // a deleted item must not linger in checkedIdSet
     notifyListeners();
     await store.removeItem(id);
   }
@@ -298,6 +329,12 @@ class AppController extends ChangeNotifier {
     darkMode = !darkMode;
     notifyListeners();
     await store.saveDarkMode(darkMode);
+  }
+
+  Future<void> toggleCelebrations() async {
+    celebrationsOn = !celebrationsOn;
+    notifyListeners();
+    await store.saveCelebrations(celebrationsOn);
   }
 
   void _rebuildChecked() {

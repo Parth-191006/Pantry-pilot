@@ -6,9 +6,17 @@ import 'package:flutter/material.dart';
 class AppTheme {
   static const Color seed = Color(0xFF2E7D32); // "Pantry" green
 
-  /// Extra accent used for checked-state fills so success reads instantly
-  /// in both modes without relying on theme.primary alone.
+  /// Fresh sage green — success/meter color that reads in both modes.
   static const Color checkGreen = Color(0xFF43A047);
+
+  /// Warm terracotta — appetizing accent for CTAs and small highlights.
+  static const Color terracotta = Color(0xFFD84315);
+
+  /// Crisp off-white/cream canvas for light mode.
+  static const Color cream = Color(0xFFFAF8F3);
+
+  /// Dark charcoal text/canvas anchor.
+  static const Color charcoal = Color(0xFF15171A);
 
   static ThemeData light() => _base(Brightness.light);
   static ThemeData dark() => _base(Brightness.dark);
@@ -24,8 +32,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor:
-          isDark ? const Color(0xFF101410) : const Color(0xFFF7F8F5),
+      scaffoldBackgroundColor: isDark ? const Color(0xFF101410) : cream,
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
@@ -53,6 +60,22 @@ class AppTheme {
         thickness: 1,
       ),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+      // Modern switches: pill track, thumb tints, gentle motion everywhere.
+      switchTheme: SwitchThemeData(
+        trackHeight: 32 / 14,
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) return Colors.grey;
+          return states.contains(WidgetState.selected)
+              ? colorScheme.onPrimary
+              : colorScheme.outline;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          return states.contains(WidgetState.selected)
+              ? colorScheme.primary
+              : colorScheme.surfaceContainerHighest;
+        }),
+      ),
     );
   }
 }

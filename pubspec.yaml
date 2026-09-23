@@ -21,3 +21,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Bundled imagery — fetched at build time, served from the APK:
+  # the app stays 100% offline at runtime.
+  assets:
+    - assets/images/

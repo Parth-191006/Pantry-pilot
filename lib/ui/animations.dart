@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../data/models.dart';
+import '../theme/app_theme.dart';
 
 // ============================================================================
 // 1. SHARED-AXIS ROUTE — "Recipe View → Grocery List" transition
@@ -550,6 +551,116 @@ class AmountPill extends StatelessWidget {
               fontWeight: FontWeight.w700,
               color: scheme.onSecondaryContainer,
             ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// 7. LINEAR PROGRESS METER — the animated ingredient-meter bar
+// ============================================================================
+// Implicitly animated: every time [progress] changes (a checkbox toggled),
+// the fill glides to its new width instead of snapping. Driven by
+// TweenAnimationBuilder, so it needs no controller and unchecking reverses
+// just as smoothly.
+
+class LinearProgressMeter extends StatelessWidget {
+  const LinearProgressMeter({
+    super.key,
+    required this.progress,
+    this.height = 8,
+  });
+
+  /// 0..1 — recompute as (checked / total) on every toggle.
+  final double progress;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final clamped = progress.clamp(0.0, 1.0).toDouble();
+    final complete = clamped >= 1.0;
+
+    return TweenAnimationBuilder<double>(
+      // begin: null → the first frame jumps straight to the current value;
+      // later changes animate from the old value to the new one.
+      tween: Tween<double>(end: clamped),
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, _) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(height / 2),
+          child: SizedBox(
+            height: height,
+            child: Stack(
+              children: [
+                // Track.
+                ColoredBox(
+                  color: scheme.surfaceContainerHighest,
+                  child: const SizedBox.expand(),
+                ),
+                // Fill — width animates with [value].
+                FractionallySizedBox(
+                  widthFactor: value,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: complete
+                            ? const [AppTheme.checkGreen, Color(0xFF66BB6A)]
+                            : [scheme.primary, scheme.primary.withValues(alpha: 0.75)],
+                      ),
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ============================================================================
+// 8. PRESSABLE SCALE — springy press-down micro-interaction for cards/buttons
+// ============================================================================
+
+class PressableScale extends StatefulWidget {
+  const PressableScale({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.pressedScale = 0.97,
+  });
+
+  final Widget child;
+  final VoidCallback? onTap;
+  final double pressedScale;
+
+  @override
+  State<PressableScale> createState() => _PressableScaleState();
+}
+
+class _PressableScaleState extends State<PressableScale> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.onTap != null;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: enabled ? (_) => setState(() => _down = true) : null,
+      onTapCancel: enabled ? () => setState(() => _down = false) : null,
+      onTapUp: enabled ? (_) => setState(() => _down = false) : null,
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _down ? widget.pressedScale : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: _down ? Curves.easeOut : Curves.easeOutBack,
+        child: widget.child,
       ),
     );
   }

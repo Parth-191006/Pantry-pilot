@@ -62,11 +62,12 @@ lib/
     └── settings_screen.dart       # dark mode, About, data controls
 ```
 
-**Flow:** Splash (logo/tagline animation) → fade → Home (gradient hero with
-floating food art) → (shared-axis push) → Recipe Detail → tap CTA → parser
-runs → (shared-axis push) → Grocery List, with staggered section entrance.
-Settings (⚙️ corner on Home) holds dark mode, the About text, and data
-controls.
+**Flow:** Splash (logo/tagline animation) → fade → Home (photo hero — bundled
+produce image under a dark scrim, time-aware greeting, Ken Burns drift, CTA —
+plus the recipe library) → (shared-axis push) → Recipe Detail → tap CTA →
+parser runs → (shared-axis push) → Grocery List (live progress meter + ring,
+staggered section entrance). Settings (⚙️ corner on Home) holds dark mode,
+celebrations, the About text, and data controls.
 
 ## Animation hookup guide
 
@@ -101,6 +102,10 @@ used in this codebase.
 - **Parsing:** 100% rule-based, deterministic (`Random(seed)` in painters),
   and synchronous — identical input always yields identical sections, which
   keeps entrance animations stable across restarts.
+- **Imagery:** the hero photograph is bundled at
+  `assets/images/hero_produce.jpg` (fetched at build time, loaded from disk —
+  the app never touches the network). Drop any produce photo there to
+  rebrand; 1600 px wide or larger recommended.
 - **Checked state survives process death:** every toggle persists
   immediately; `bootstrap()` reloads it on next launch (checkboxes render
   already-settled, no replay of the burst).
