@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -449,13 +450,37 @@ class _StaggeredEntranceState extends State<StaggeredEntrance>
     duration: const Duration(milliseconds: 420),
   );
   late final Animation<double> _a = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
+  Timer? _delayTimer;
 
   @override
   void initState() {
     super.initState();
-    Future.delayed(widget.baseDelay + Duration(milliseconds: 60 * widget.index), () {
+    // Cancellable timer: the old Future.delayed leaked (its callback still
+    // fired after dispose) and left dangling timers under fake_async in
+    // widget tests. Cancelling on dispose fixes both.
+    _delayTimer = Timer(widget.baseDelay + Duration(milliseconds: 60 * widget.index), () {
       if (mounted) _c.forward();
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant StaggeredEntrance old) {
+    super.didUpdateWidget(old);
+    // Same index+delay → nothing to do. Different index or delay (reused
+    // element in a recycled list slot) → reschedule.
+    if (old.index != widget.index || old.baseDelay != widget.baseDelay) {
+      _delayTimer?.cancel();
+      _delayTimer = Timer(widget.baseDelay + Duration(milliseconds: 60 * widget.index), () {
+        if (mounted) _c.forward();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _delayTimer?.cancel();
+    _c.dispose();
+    super.dispose();
   }
 
   @override

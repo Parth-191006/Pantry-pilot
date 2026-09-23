@@ -17,6 +17,16 @@ Future<void> pumpIntoHome(WidgetTester tester, PantryPilotApp app) async {
   await tester.pump(const Duration(milliseconds: 100));
 }
 
+/// Flush every pending entrance-stagger delay timer before the test ends.
+/// fake_async fails any test that finishes with live timers, and the stagger
+/// cascade (60ms × index + 420ms animation) on a tall test viewport builds
+/// more cards than a phone would, so pumps tuned to phone math can leave
+/// stragglers. Three generous seconds covers every cascade in the app.
+Future<void> flushTimers(WidgetTester tester) async {
+  await tester.pump(const Duration(seconds: 3));
+  await tester.pump(const Duration(milliseconds: 100));
+}
+
 AppController makeController() => AppController(
       store: GroceryStore(inMemory: true),
       parser: const IngredientParser(),
@@ -46,6 +56,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(controller.darkMode, isTrue);
+    await flushTimers(tester);
   });
 
   testWidgets('filter pills narrow the shelf and All restores it',
@@ -69,12 +80,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1200));
     expect(find.text('Garlic Butter Pasta'), findsOneWidget);
 
-    // Back to All. Pump past the full cascade (60ms × 10 cards + 420ms
-    // animation) so no StaggeredEntrance timers are pending at test end.
+    // Back to All.
     await tester.tap(find.text('All'));
-    await tester.pump(const Duration(milliseconds: 1200));
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 600));
     expect(controller.visibleRecipes.length, 10);
+    await flushTimers(tester);
   });
 
   testWidgets('ingredient meter updates live as items are checked',
@@ -121,5 +131,6 @@ void main() {
     expect(controller.checkedCount, 0);
     expect(find.byKey(meterKey(0)), findsOneWidget);
     expect(find.byKey(meterKey(1)), findsNothing);
+    await flushTimers(tester);
   });
 }
