@@ -62,7 +62,6 @@ class AppTheme {
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
       // Modern switches: pill track, thumb tints, gentle motion everywhere.
       switchTheme: SwitchThemeData(
-        trackHeight: 32 / 14,
         trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) return Colors.grey;

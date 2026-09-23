@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../app_info.dart';
 import '../app_scope.dart';
 import '../data/models.dart';
+import '../theme/app_theme.dart';
 import '../ui/animations.dart';
 import '../ui/greeting.dart';
 import 'recipe_detail_screen.dart';
@@ -13,13 +14,20 @@ import 'settings_screen.dart';
 /// Entry screen — recipe library. The hero leads with a bundled photograph of
 /// fresh produce under a dark scrim (readable in both themes, zero network),
 /// followed by a time-aware greeting and the recipe cards.
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   /// Comfortable reading width on tablets/desktop; content stays centered.
   static const double _maxContentWidth = 560;
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
   /// Marks the "Your recipes" header so the hero CTA can scroll to it.
+  /// (Keys must live on State — a const constructor's class cannot
+  /// initialize non-const fields.)
   final GlobalKey _libraryKey = GlobalKey();
 
   @override
@@ -282,7 +290,7 @@ class _ProduceBackdrop extends CustomPainter {
 // ---------------------------------------------------------------------------
 
 class _LibraryHeader extends StatelessWidget {
-  const _LibraryHeader({required this.count});
+  const _LibraryHeader({super.key, required this.count});
 
   final int count;
 

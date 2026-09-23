@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_info.dart';
 import '../app_scope.dart';
 import '../data/store.dart';
+import '../theme/app_theme.dart';
 import '../ui/animations.dart';
 
 /// Settings hub, redesigned as clean card containers: each card has a soft
