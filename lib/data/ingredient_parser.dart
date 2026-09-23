@@ -116,7 +116,9 @@ class IngredientParser {
       quantity: total > 0 ? _prettyNumber(total) : a.quantity,
       unit: a.unit.isEmpty ? b.unit : a.unit,
     );
-  }  String _normalizeFraction(String raw) {
+  }
+
+  String _normalizeFraction(String raw) {
     final t = raw.trim();
     if (t.contains('/')) {
       final tokens = t.split(RegExp(r'\s+'));

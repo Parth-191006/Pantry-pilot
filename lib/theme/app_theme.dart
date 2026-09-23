@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 
 /// Single-source Material 3 theming. Both modes are generated from one seed
-/// color, so light/dark always feel like the same brand. The app never reads
-/// `MediaQuery.platformBrightness` directly — it flips a single [ThemeMode].
+/// color, then hand-tuned so light/dark always feel like the same brand:
+///
+///  • Light: crisp cream canvas, charcoal ink, white cards with a hairline
+///    edge — the "recipe card on the kitchen counter" look.
+///  • Dark: deep forest-charcoal plates (never pure black), a raised card
+///    tone with a visible edge, and a lighter sage primary so meters, pills
+///    and glowing icons read like small lamps in a night kitchen.
+///
+/// The app never reads `MediaQuery.platformBrightness` directly — it flips a
+/// single [ThemeMode].
 class AppTheme {
-  static const Color seed = Color(0xFF2E7D32); // "Pantry" green
+  static const Color seed = Color(0xFF2E7D32); // "Recipe Pilot" green
 
   /// Fresh sage green — success/meter color that reads in both modes.
   static const Color checkGreen = Color(0xFF43A047);
@@ -18,21 +26,55 @@ class AppTheme {
   /// Dark charcoal text/canvas anchor.
   static const Color charcoal = Color(0xFF15171A);
 
+  // ---- Dark mode surfaces (hand-tuned, deliberately green-leaning) ----
+  static const Color _darkCanvas = Color(0xFF0B120E);
+  static const Color _darkSurfaceLow = Color(0xFF121B15);
+  static const Color _darkCard = Color(0xFF19251D);
+  static const Color _darkEdge = Color(0xFF2B3D31);
+  static const Color _darkInk = Color(0xFFE8F0E8);
+
+  // ---- Light mode surfaces ----
+  static const Color _lightCard = Color(0xFFF3F0E7);
+  static const Color _lightEdge = Color(0xFFE4DFD1);
+  static const Color _lightInk = Color(0xFF1F2421);
+
   static ThemeData light() => _base(Brightness.light);
   static ThemeData dark() => _base(Brightness.dark);
 
-  static ThemeData _base(Brightness brightness) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: seed,
-      brightness: brightness,
-    );
-
+  static ColorScheme _scheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
+    final base = ColorScheme.fromSeed(seedColor: seed, brightness: brightness);
+    if (isDark) {
+      return base.copyWith(
+        surface: _darkCanvas,
+        surfaceContainerLow: _darkSurfaceLow,
+        surfaceContainerHighest: _darkCard,
+        onSurface: _darkInk,
+        outlineVariant: _darkEdge,
+        primaryContainer: const Color(0xFF1F3D28),
+        onPrimaryContainer: const Color(0xFFBAE9C0),
+      );
+    }
+    return base.copyWith(
+      surface: cream,
+      surfaceContainerLow: const Color(0xFFF6F3EA),
+      surfaceContainerHighest: _lightCard,
+      onSurface: _lightInk,
+      outlineVariant: _lightEdge,
+    );
+  }
+
+  static ThemeData _base(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    final colorScheme = _scheme(brightness);
+
+    final cardColor = isDark ? _darkCard : _lightCard;
+    final edgeColor = isDark ? _darkEdge : _lightEdge;
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: isDark ? const Color(0xFF101410) : cream,
+      scaffoldBackgroundColor: isDark ? _darkCanvas : cream,
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
@@ -47,19 +89,49 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: colorScheme.surfaceContainerHighest.withValues(
-          alpha: isDark ? 0.45 : 0.6,
-        ),
+        color: cardColor,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          // Hairline edge: gives dark cards definition without shadows,
+          // and keeps light cards from floating on the cream canvas.
+          side: BorderSide(color: edgeColor),
+        ),
         margin: EdgeInsets.zero,
       ),
       dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        color: colorScheme.outlineVariant.withValues(alpha: 0.6),
         space: 1,
         thickness: 1,
       ),
-      snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+      // Form fields (the add-recipe studio is field-heavy): filled, rounded,
+      // and readable in both modes.
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: isDark ? _darkSurfaceLow : Colors.white.withValues(alpha: 0.7),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: edgeColor),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: edgeColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: colorScheme.primary, width: 1.8),
+        ),
+        labelStyle: TextStyle(
+          color: colorScheme.onSurface.withValues(alpha: 0.65),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: isDark ? const Color(0xFF223026) : const Color(0xFF26302A),
+        contentTextStyle: const TextStyle(color: Colors.white),
+      ),
       // Modern switches: pill track, thumb tints, gentle motion everywhere.
       switchTheme: SwitchThemeData(
         trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
@@ -74,6 +146,10 @@ class AppTheme {
               ? colorScheme.primary
               : colorScheme.surfaceContainerHighest;
         }),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: colorScheme.primary,
+        linearTrackColor: colorScheme.surfaceContainerHighest,
       ),
     );
   }

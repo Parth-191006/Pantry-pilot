@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'app_info.dart';
 import 'app_scope.dart';
 import 'data/ingredient_parser.dart';
 import 'data/store.dart';
@@ -13,11 +14,11 @@ Future<void> main() async {
   final controller = AppController(store: GroceryStore(), parser: const IngredientParser());
   await controller.bootstrap();
 
-  runApp(PantryPilotApp(controller: controller));
+  runApp(RecipePilotApp(controller: controller));
 }
 
-class PantryPilotApp extends StatelessWidget {
-  const PantryPilotApp({super.key, required this.controller});
+class RecipePilotApp extends StatelessWidget {
+  const RecipePilotApp({super.key, required this.controller});
 
   final AppController controller;
 
@@ -29,7 +30,7 @@ class PantryPilotApp extends StatelessWidget {
         animation: controller,
         builder: (context, _) {
           return MaterialApp(
-            title: 'Pantry Pilot',
+            title: appName,
             debugShowCheckedModeBanner: false,
             theme: AppTheme.light(),
             darkTheme: AppTheme.dark(),

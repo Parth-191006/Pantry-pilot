@@ -5,6 +5,8 @@ import '../app_scope.dart';
 import '../data/store.dart';
 import '../theme/app_theme.dart';
 import '../ui/animations.dart';
+import '../ui/glow.dart';
+import '../ui/logo.dart';
 
 /// Settings hub, redesigned as clean card containers: each card has a soft
 /// shadow, rounded corners, generous padding, an icon tile per row, and a
@@ -33,10 +35,21 @@ class SettingsScreen extends StatelessWidget {
                 tileColor: const Color(0xFF5C6BC0),
                 title: 'Dark mode',
                 description: app.darkMode
-                    ? 'On — easy on night-time eyes'
+                    ? 'On — a night-kitchen glow'
                     : 'Off — bright, crisp and clean',
                 value: app.darkMode,
                 onChanged: (_) => app.toggleDarkMode(),
+              ),
+              const _RowDivider(),
+              _SwitchRow(
+                icon: Icons.auto_awesome_rounded,
+                tileColor: const Color(0xFF00ACC1),
+                title: 'Glow effects',
+                description: app.glowEffects
+                    ? 'Icons light up their surroundings'
+                    : 'Flat icons — calm and battery-friendly',
+                value: app.glowEffects,
+                onChanged: (_) => app.toggleGlowEffects(),
               ),
               const _RowDivider(),
               _SwitchRow(
@@ -61,15 +74,7 @@ class SettingsScreen extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: scheme.primaryContainer.withValues(alpha: 0.6),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Center(child: Text('🥬', style: TextStyle(fontSize: 28))),
-                      ),
+                      const RecipePilotLogo(size: 56),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
@@ -206,8 +211,9 @@ class _SettingsCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.45 : 0.6),
+        color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.55 : 0.72),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.8)),
         boxShadow: [
           // shadow-sm equivalent; nearly invisible in dark mode by design.
           BoxShadow(
@@ -250,14 +256,11 @@ class _SettingsRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: tileColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, size: 21, color: tileColor),
+          GlowTile(
+            color: tileColor,
+            size: 40,
+            radius: 12,
+            child: GlowIcon(icon: icon, color: tileColor, size: 21),
           ),
           const SizedBox(width: 14),
           Expanded(

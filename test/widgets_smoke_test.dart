@@ -1,61 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:pantry_pilot/data/ingredient_parser.dart';
-import 'package:pantry_pilot/data/store.dart';
 import 'package:pantry_pilot/main.dart';
 import 'package:pantry_pilot/ui/animations.dart';
 
-/// Splash runs 1.5s, then a 450ms fade into Home. The hero card repeats a
-/// float animation forever, so tests must pump explicit durations —
-/// pumpAndSettle would never settle.
-Future<void> pumpIntoHome(WidgetTester tester, PantryPilotApp app) async {
-  await tester.pumpWidget(app);
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 1600));
-  await tester.pump(const Duration(milliseconds: 500));
-  await tester.pump(const Duration(milliseconds: 100));
-}
-
-/// Flush every pending entrance-stagger delay timer before the test ends.
-/// fake_async fails any test that finishes with live timers, and the stagger
-/// cascade (60ms × index + 420ms animation) on a tall test viewport builds
-/// more cards than a phone would, so pumps tuned to phone math can leave
-/// stragglers. Three generous seconds covers every cascade in the app.
-Future<void> flushTimers(WidgetTester tester) async {
-  await tester.pump(const Duration(seconds: 3));
-  await tester.pump(const Duration(milliseconds: 100));
-}
-
-AppController makeController() => AppController(
-      store: GroceryStore(inMemory: true),
-      parser: const IngredientParser(),
-    );
+import 'helpers.dart';
 
 void main() {
-  testWidgets('splashes into home, opens settings, toggles dark mode',
+  testWidgets('splashes into home, opens settings, toggles dark mode + glow',
       (tester) async {
     final controller = makeController();
     await controller.bootstrap();
 
-    await pumpIntoHome(tester, PantryPilotApp(controller: controller));
+    await pumpIntoHome(tester, RecipePilotApp(controller: controller));
 
-    // Home is showing the seeded library.
-    expect(find.text('Garlic Butter Pasta'), findsOneWidget);
+    // Home is showing the seeded library. Titles can legitimately appear twice
+    // (the "Ready in 30" carousel mirrors the shelf), so match at least one.
+    expect(find.text('Garlic Butter Pasta'), findsWidgets);
     expect(find.text('Your recipes'), findsOneWidget);
 
-    // Settings corner → redesigned settings page.
+    // Settings corner → settings page.
     await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Dark mode'), findsOneWidget);
+    expect(find.text('Glow effects'), findsOneWidget);
     // Custom switch rows wrap a bare Material [Switch] (Semantics provides
     // the accessible label) — not the old SwitchListTile.
     await tester.tap(find.byType(Switch).first);
     await tester.pump(const Duration(milliseconds: 100));
-
     expect(controller.darkMode, isTrue);
+
+    // Second switch is the glow halos introduced with dark-mode polish.
+    await tester.tap(find.byType(Switch).at(1));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(controller.glowEffects, isFalse);
     await flushTimers(tester);
   });
 
@@ -64,7 +44,7 @@ void main() {
     final controller = makeController();
     await controller.bootstrap();
 
-    await pumpIntoHome(tester, PantryPilotApp(controller: controller));
+    await pumpIntoHome(tester, RecipePilotApp(controller: controller));
 
     expect(controller.visibleRecipes.length, 10);
 
@@ -72,7 +52,8 @@ void main() {
     await tester.tap(find.text('Vegetarian').first);
     await tester.pump(const Duration(milliseconds: 600));
 
-    // Controller filtered; a meaty recipe vanished from the shelf.
+    // Controller filtered; a meaty recipe vanished from the shelf (and the
+    // "Ready in 30" carousel hides itself while a filter is active).
     expect(controller.activeTag, 'Vegetarian');
     expect(controller.visibleRecipes.length, lessThan(10));
     expect(find.text('Chicken Fajita Bowl'), findsNothing);
@@ -92,10 +73,10 @@ void main() {
     final controller = makeController();
     await controller.bootstrap();
 
-    await pumpIntoHome(tester, PantryPilotApp(controller: controller));
+    await pumpIntoHome(tester, RecipePilotApp(controller: controller));
 
-    // Home → recipe detail.
-    await tester.tap(find.text('Garlic Butter Pasta'));
+    // Home → recipe detail (the carousel mirrors this recipe, use the first).
+    await tester.tap(find.text('Garlic Butter Pasta').first);
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pump(const Duration(milliseconds: 100));
 

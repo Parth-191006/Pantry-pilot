@@ -684,3 +684,323 @@ class _PressableScaleState extends State<PressableScale> {
     );
   }
 }
+
+// ============================================================================
+// 9. SHINY TEXT — a light sweeps across the words
+// ============================================================================
+// Hand-rolled Flutter answer to React Bits' "Shiny Text"
+// (reactbits.dev/components/shiny-text): a masked gradient travels across the
+// glyphs on a loop. One controller, one ShaderMask, zero packages — and because
+// the highlight is a shader it costs nothing extra on the raster thread.
+
+class ShinyText extends StatefulWidget {
+  const ShinyText({
+    super.key,
+    required this.text,
+    this.style,
+    this.shineColor = const Color(0xFFFFE9B0),
+    this.period = const Duration(milliseconds: 3400),
+  });
+
+  final String text;
+  final TextStyle? style;
+
+  /// Color of the travelling highlight — warm cream reads well on dark
+  /// imagery; pass a darker tint for light surfaces if needed.
+  final Color shineColor;
+  final Duration period;
+
+  @override
+  State<ShinyText> createState() => _ShinyTextState();
+}
+
+class _ShinyTextState extends State<ShinyText>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: widget.period,
+  )..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) {
+        // Sweep during the middle of the cycle and hold off-screen outside it,
+        // so the highlight never parks in the middle of a word.
+        final t = ((_c.value - 0.18) / 0.64).clamp(0.0, 1.0);
+        final x = -2.6 + 3.6 * t;
+        return ShaderMask(
+          blendMode: BlendMode.srcATop,
+          shaderCallback: (bounds) => LinearGradient(
+            begin: Alignment(x - 0.55, 0),
+            end: Alignment(x + 0.55, 0),
+            colors: [
+              const Color(0x00000000),
+              widget.shineColor.withValues(alpha: 0.9),
+              const Color(0x00000000),
+            ],
+          ).createShader(bounds),
+          child: child,
+        );
+      },
+      child: Text(widget.text, style: widget.style),
+    );
+  }
+}
+
+// ============================================================================
+// 10. COUNT UP — numbers that roll up instead of snapping
+// ============================================================================
+// React Bits' "Count Up", Flutter flavour: any stat can animate from 0 (or
+// from its previous value) with a single implicit tween. No timers, so widget
+// tests never see a dangling async gap.
+
+class CountUp extends StatelessWidget {
+  const CountUp({
+    super.key,
+    required this.value,
+    this.style,
+    this.duration = const Duration(milliseconds: 900),
+  });
+
+  final num value;
+  final TextStyle? style;
+  final Duration duration;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: value.toDouble()),
+      duration: duration,
+      curve: Curves.easeOutCubic,
+      builder: (context, v, _) => Text('${v.round()}', style: style),
+    );
+  }
+}
+
+// ============================================================================
+// 11. BORDER BEAM — a light running around a button's edge
+// ============================================================================
+// The Flutter equivalent of React Bits' "Border Beam" / conic border: a
+// rotating sweep-gradient stroke hugging the child's outline, plus a blurred
+// copy behind it so it glows. Used on the primary "New recipe" action.
+
+class BorderBeam extends StatefulWidget {
+  const BorderBeam({
+    super.key,
+    required this.child,
+    this.radius = 22,
+    this.thickness = 1.8,
+    this.inset = 3,
+    this.colors = const [
+      Color(0x00000000),
+      Color(0xFF8BE49B), // sage light
+      Color(0xFFFF8A4C), // terracotta light
+      Color(0x00000000),
+    ],
+    this.period = const Duration(milliseconds: 3600),
+  });
+
+  final Widget child;
+  final double radius;
+  final double thickness;
+
+  /// Gap between the beam and the child's edge.
+  final double inset;
+  final List<Color> colors;
+  final Duration period;
+
+  @override
+  State<BorderBeam> createState() => _BorderBeamState();
+}
+
+class _BorderBeamState extends State<BorderBeam>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: widget.period,
+  )..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, child) => CustomPaint(
+          painter: _BeamPainter(
+            t: _c.value,
+            radius: widget.radius,
+            thickness: widget.thickness,
+            inset: widget.inset,
+            colors: widget.colors,
+          ),
+          child: child,
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(widget.inset + widget.thickness),
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
+class _BeamPainter extends CustomPainter {
+  _BeamPainter({
+    required this.t,
+    required this.radius,
+    required this.thickness,
+    required this.inset,
+    required this.colors,
+  });
+
+  final double t;
+  final double radius;
+  final double thickness;
+  final double inset;
+  final List<Color> colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final rrect = RRect.fromRectAndRadius(
+      rect.deflate(inset + thickness / 2),
+      Radius.circular(radius),
+    );
+
+    final shader = SweepGradient(
+      startAngle: 0,
+      endAngle: math.pi * 2,
+      colors: colors,
+      stops: const [0.0, 0.25, 0.5, 0.75],
+      transform: GradientRotation(t * math.pi * 2),
+    ).createShader(rect);
+
+    // Halo pass, then the crisp beam on top.
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = thickness * 2.4
+        ..shader = shader
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = thickness
+        ..shader = shader,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BeamPainter old) =>
+      old.t != t || old.colors != colors || old.radius != radius;
+}
+
+// ============================================================================
+// 12. AURORA BACKDROP — drifting color field behind a hero surface
+// ============================================================================
+// Inspired by React Bits' "Aurora"/"Gradient Blobs": a handful of blurred
+// circles orbiting slowly. Painted once per frame into a RepaintBoundary, so
+// it never repaints its siblings.
+
+class AuroraBackdrop extends StatefulWidget {
+  const AuroraBackdrop({
+    super.key,
+    this.colors = const [
+      Color(0xFF43A047),
+      Color(0xFF1B5E20),
+      Color(0xFFE2571E),
+      Color(0xFFF9A825),
+    ],
+    this.intensity = 0.28,
+    this.period = const Duration(seconds: 18),
+  });
+
+  final List<Color> colors;
+  final double intensity;
+  final Duration period;
+
+  @override
+  State<AuroraBackdrop> createState() => _AuroraBackdropState();
+}
+
+class _AuroraBackdropState extends State<AuroraBackdrop>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: widget.period,
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, _) => CustomPaint(
+          size: Size.infinite,
+          painter: _AuroraPainter(
+            t: _c.value,
+            colors: widget.colors,
+            intensity: widget.intensity,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AuroraPainter extends CustomPainter {
+  _AuroraPainter({
+    required this.t,
+    required this.colors,
+    required this.intensity,
+  });
+
+  final double t;
+  final List<Color> colors;
+  final double intensity;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final shortest = size.shortestSide;
+    for (var i = 0; i < colors.length; i++) {
+      final phase = t * 2 * math.pi + i * 1.7;
+      final cx = size.width * (0.5 + 0.34 * math.sin(phase + i * 0.4));
+      final cy = size.height * (0.5 + 0.28 * math.cos(phase * 0.8 + i));
+      final radius = shortest * (0.44 + 0.10 * math.sin(phase * 0.6 + i));
+      canvas.drawCircle(
+        Offset(cx, cy),
+        radius,
+        Paint()
+          ..color = colors[i].withValues(alpha: intensity)
+          ..maskFilter =
+              MaskFilter.blur(BlurStyle.normal, math.max(8, radius * 0.45)),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_AuroraPainter old) => old.t != t;
+}

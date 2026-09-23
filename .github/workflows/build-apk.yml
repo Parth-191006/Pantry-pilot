@@ -40,6 +40,17 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Launcher icon + home-screen label. The icon is generated from the same
+      # vector geometry the app paints in-app (tool/generate_icons.py), so the
+      # two can never drift apart.
+      - name: Brand the Android shell
+        run: |
+          dart run flutter_launcher_icons
+          sed -i 's/android:label="[^"]*"/android:label="Recipe Pilot"/' \
+            android/app/src/main/AndroidManifest.xml
+          grep -n 'android:label' android/app/src/main/AndroidManifest.xml
+          ls android/app/src/main/res/mipmap-xxhdpi/
+
       - name: Analyze (non-blocking)
         run: flutter analyze
         continue-on-error: true
@@ -73,6 +84,6 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pantry-pilot-apk-${{ github.run_number }}
+          name: recipe-pilot-apk-${{ github.run_number }}
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error

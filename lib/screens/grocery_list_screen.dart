@@ -5,6 +5,7 @@ import '../data/models.dart';
 import '../data/store.dart';
 import '../theme/app_theme.dart';
 import '../ui/animations.dart';
+import '../ui/glow.dart';
 
 /// The payoff screen: parser output organized into aisle sections with
 /// tactile check-off interactions. The header meter recomputes
@@ -186,7 +187,7 @@ class _SectionCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
               child: Row(
                 children: [
-                  Text(section.category.emoji, style: const TextStyle(fontSize: 20)),
+                  GlowEmoji(emoji: section.category.emoji, size: 18),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -338,7 +339,7 @@ class _EmptyList extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                 ),
-                const Text('🛒', style: TextStyle(fontSize: 46)),
+                const GlowEmoji(emoji: '🛒', size: 46),
                 Positioned(
                   top: 0,
                   right: 16,

@@ -5,15 +5,23 @@ import 'package:flutter/material.dart';
 import '../app_info.dart';
 import '../app_scope.dart';
 import '../data/models.dart';
+import '../data/store.dart';
 import '../theme/app_theme.dart';
 import '../ui/animations.dart';
+import '../ui/glow.dart';
 import '../ui/greeting.dart';
+import '../ui/logo.dart';
+import 'add_recipe_screen.dart';
+import 'grocery_list_screen.dart';
 import 'recipe_detail_screen.dart';
 import 'settings_screen.dart';
 
-/// Entry screen — recipe library. The hero leads with a bundled photograph of
-/// fresh produce under a dark scrim (readable in both themes, zero network),
-/// followed by a time-aware greeting and the recipe cards.
+/// Entry screen — the cookbook dashboard.
+///
+/// Reading order, top to bottom: a photographic hero, the library at a glance,
+/// three one-tap actions, a "Ready in 30" carousel, then the filterable shelf
+/// itself. Everything below the hero is width-capped so tablets and desktop
+/// windows keep a comfortable column instead of stretching.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -36,9 +44,19 @@ class _HomeScreenState extends State<HomeScreen> {
     final recipes = app.visibleRecipes;
     final filters = app.availableTags;
 
+    // "Ready in 30": the fast wins, shortest first. Hidden while a filter is
+    // active so the filtered shelf is never duplicated above it.
+    final quickPicks = app.recipes
+        .where((r) => r.minutes != null && r.minutes! <= 30)
+        .toList()
+      ..sort((a, b) => a.minutes!.compareTo(b.minutes!));
+    final showQuickPicks = app.activeTag == AppController.allTag &&
+        app.recipes.length > 3 &&
+        quickPicks.length >= 2;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(appName),
+        title: RecipePilotWordmark(text: appName),
         actions: [
           IconButton(
             tooltip: 'Settings',
@@ -50,58 +68,113 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: app.recipes.isEmpty
-          ? _EmptyState(
-              onAdd: () => _showAddSheet(context),
-            )
+          ? _EmptyState(onAdd: _openAddRecipe)
           : Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: HomeScreen._maxContentWidth),
-                child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
-                  // hero + pills + header + filtered recipes
-                  itemCount: recipes.length + 3,
-                  itemBuilder: (context, i) {
-                    if (i == 0) return _HeroPhotoCard(onExplore: () => _explorePantry(context));
-                    if (i == 1) {
-                      return _FilterPills(
-                        tags: filters,
-                        activeTag: app.activeTag,
-                        onSelected: app.setActiveTag,
-                      );
-                    }
-                    if (i == 2) {
-                      return _LibraryHeader(key: _libraryKey, count: recipes.length);
-                    }
-                    final recipe = recipes[i - 3];
-                    // Keyed by filter+id so switching pills replays a fresh
-                    // slide-up cascade on the new set — not just a reshuffle.
-                    return StaggeredEntrance(
-                      key: ValueKey('${app.activeTag}:${recipe.id}'),
-                      index: i - 3,
-                      baseDelay: const Duration(milliseconds: 90),
-                      child: _RecipeCard(recipe: recipe),
-                    );
-                  },
+                constraints:
+                    const BoxConstraints(maxWidth: HomeScreen._maxContentWidth),
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
+                  children: [
+                    _HeroPhotoCard(onExplore: () => _explorePantry(context)),
+                    _StatsStrip(recipes: app.recipes),
+                    _QuickActions(
+                      onAdd: _openAddRecipe,
+                      onSurprise: _surpriseMe,
+                      onList: app.hasList ? _openList : null,
+                      listProgress: app.hasList
+                          ? '${app.checkedCount}/${app.totalCount}'
+                          : '',
+                    ),
+                    if (showQuickPicks) _QuickPicks(recipes: quickPicks.take(6).toList()),
+                    _FilterPills(
+                      tags: filters,
+                      activeTag: app.activeTag,
+                      onSelected: app.setActiveTag,
+                    ),
+                    _SectionTitle(
+                      key: _libraryKey,
+                      icon: Icons.menu_book_rounded,
+                      color: AppTheme.checkGreen,
+                      title: 'Your recipes',
+                      trailing: _CountBadge(count: recipes.length),
+                    ),
+                    const SizedBox(height: 10),
+                    if (recipes.isEmpty)
+                      _NoMatches(tag: app.activeTag, onShowAll: () => app.setActiveTag(null))
+                    else
+                      for (var i = 0; i < recipes.length; i++)
+                        StaggeredEntrance(
+                          // Keyed by filter+id so switching pills replays a
+                          // fresh slide-up cascade on the new set.
+                          key: ValueKey('${app.activeTag}:${recipes[i].id}'),
+                          index: i,
+                          baseDelay: const Duration(milliseconds: 90),
+                          child: _RecipeCard(recipe: recipes[i]),
+                        ),
+                    const SizedBox(height: 6),
+                    _TipCard(onAdd: _openAddRecipe),
+                  ],
                 ),
               ),
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddSheet(context),
-        icon: const Icon(Icons.receipt_long),
-        label: const Text('Paste a recipe'),
-        backgroundColor: AppTheme.terracotta,
-        foregroundColor: Colors.white,
+      floatingActionButton: BorderBeam(
+        radius: 22,
+        child: FilledButton.icon(
+          key: const ValueKey('new_recipe_fab'),
+          onPressed: _openAddRecipe,
+          style: FilledButton.styleFrom(
+            backgroundColor: AppTheme.terracotta,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+          ),
+          icon: const Icon(Icons.add_rounded, size: 20),
+          label: const Text('New recipe',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+        ),
       ),
     );
   }
 
-  void _showAddSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => const _AddRecipeSheet(),
+  // ---- Navigation --------------------------------------------------------
+
+  Future<void> _openAddRecipe() async {
+    final saved = await Navigator.of(context).push<Recipe>(
+      sharedAxisRoute(page: const AddRecipeScreen()),
     );
+    if (!mounted || saved == null) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Saved “${saved.title}”'),
+          action: SnackBarAction(
+            label: 'Cook it',
+            onPressed: () {
+              if (!mounted) return;
+              Navigator.of(context).push(
+                sharedAxisRoute(page: RecipeDetailScreen(recipe: saved)),
+              );
+            },
+          ),
+        ),
+      );
+  }
+
+  void _surpriseMe() {
+    final all = context.app.recipes;
+    if (all.isEmpty) return;
+    final pick = all[math.Random().nextInt(all.length)];
+    Navigator.of(context).push(
+      sharedAxisRoute(page: RecipeDetailScreen(recipe: pick)),
+    );
+  }
+
+  void _openList() {
+    Navigator.of(context).push(sharedAxisRoute(page: const GroceryListScreen()));
   }
 
   /// CTA target: scrolls the recipe shelf into view.
@@ -114,13 +187,13 @@ class _HomeScreenState extends State<HomeScreen> {
         curve: Curves.easeOutCubic,
       );
     } else {
-      _showAddSheet(context);
+      _openAddRecipe();
     }
   }
 }
 
 // ---------------------------------------------------------------------------
-// Hero: bundled photo + dark scrim + greeting + CTA + slow Ken Burns drift.
+// Hero: bundled photo + dark scrim + greeting + shiny headline + CTA
 // ---------------------------------------------------------------------------
 
 class _HeroPhotoCard extends StatefulWidget {
@@ -154,24 +227,25 @@ class _HeroPhotoCardState extends State<_HeroPhotoCard>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final greeting = timeGreeting(DateTime.now());
+    final dark = theme.brightness == Brightness.dark;
 
     return RepaintBoundary(
       child: Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 22),
+        padding: const EdgeInsets.only(top: 8, bottom: 18),
         child: AnimatedBuilder(
           animation: _c,
           builder: (context, child) {
             final t = _c.value;
             // Ken Burns: a slow, subtle zoom+drift so the still photo feels alive.
             final scale = 1.0 + 0.06 * t;
-            final drift = Offset(6 * math.sin(t * math.pi), 4 * math.cos(t * math.pi));
+            final drift =
+                Offset(6 * math.sin(t * math.pi), 4 * math.cos(t * math.pi));
 
             return ClipRRect(
               borderRadius: BorderRadius.circular(24),
               child: SizedBox(
-                height: 200,
+                height: 208,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -192,7 +266,7 @@ class _HeroPhotoCardState extends State<_HeroPhotoCard>
                         ),
                       ),
                     ),
-                    // --- Scrim: bottom-heavy dark gradient keeps text WCAG-readable ---
+                    // --- Scrim: bottom-heavy dark gradient keeps text readable ---
                     const DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -205,6 +279,26 @@ class _HeroPhotoCardState extends State<_HeroPhotoCard>
                             Color(0xCC101510), // ~80% near-black green
                           ],
                         ),
+                      ),
+                    ),
+                    // --- Brand chip ---
+                    Positioned(
+                      left: 18,
+                      top: 16,
+                      child: Row(
+                        children: [
+                          const RecipePilotMark(size: 20),
+                          const SizedBox(width: 7),
+                          Text(
+                            appName.toUpperCase(),
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.6,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     // --- Foreground content ---
@@ -224,31 +318,47 @@ class _HeroPhotoCardState extends State<_HeroPhotoCard>
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
-                            'Cook it, then shop for it.',
+                          const ShinyText(
+                            text: appTagline,
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 22,
+                              fontSize: 23,
                               height: 1.15,
                               fontWeight: FontWeight.w800,
                               letterSpacing: -0.3,
                             ),
                           ),
                           const SizedBox(height: 12),
-                          PressableScale(
-                            onTap: widget.onExplore,
-                            child: FilledButton.icon(
-                              onPressed: widget.onExplore,
-                              style: FilledButton.styleFrom(
-                                backgroundColor: AppTheme.terracotta,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 10),
-                                visualDensity: VisualDensity.compact,
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: dark
+                                  ? [
+                                      BoxShadow(
+                                        color: AppTheme.terracotta
+                                            .withValues(alpha: 0.45),
+                                        blurRadius: 22,
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: PressableScale(
+                              onTap: widget.onExplore,
+                              child: FilledButton.icon(
+                                onPressed: widget.onExplore,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AppTheme.terracotta,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 10),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                icon: const Icon(Icons.shopping_basket_rounded,
+                                    size: 18),
+                                label: const Text('Browse recipes',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w700)),
                               ),
-                              icon: const Icon(Icons.shopping_basket_rounded, size: 18),
-                              label: const Text('Explore Pantry',
-                                  style: TextStyle(fontWeight: FontWeight.w700)),
                             ),
                           ),
                         ],
@@ -267,8 +377,7 @@ class _HeroPhotoCardState extends State<_HeroPhotoCard>
 
 // ---------------------------------------------------------------------------
 // Procedural hero backdrop: a soft, blurred color-field sampled from fresh
-// produce (tomato red, basil green, avocado, cream). Used until a real photo
-// is bundled at assets/images/hero_produce.jpg — zero asset dependencies.
+// produce. Used only if the bundled photo is ever missing.
 // ---------------------------------------------------------------------------
 
 class _ProduceBackdrop extends CustomPainter {
@@ -298,12 +407,536 @@ class _ProduceBackdrop extends CustomPainter {
 }
 
 // ---------------------------------------------------------------------------
-// Library header + recipe cards
+// Stats strip — the library at a glance, with rolling numbers
+// ---------------------------------------------------------------------------
+
+class _StatsStrip extends StatelessWidget {
+  const _StatsStrip({required this.recipes});
+
+  final List<Recipe> recipes;
+
+  @override
+  Widget build(BuildContext context) {
+    final ingredientCount =
+        recipes.fold<int>(0, (sum, r) => sum + r.ingredients.length);
+    final minuteCount = recipes.fold<int>(0, (sum, r) => sum + (r.minutes ?? 0));
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Row(
+        children: [
+          Expanded(
+            child: _StatTile(
+              icon: Icons.menu_book_rounded,
+              color: AppTheme.checkGreen,
+              value: recipes.length,
+              label: 'recipes',
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _StatTile(
+              icon: Icons.local_grocery_store_rounded,
+              color: AppTheme.terracotta,
+              value: ingredientCount,
+              label: 'ingredients',
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _StatTile(
+              icon: Icons.schedule_rounded,
+              color: const Color(0xFF5C6BC0),
+              value: minuteCount,
+              label: 'min cooking',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({
+    required this.icon,
+    required this.color,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final Color color;
+  final int value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 6),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: dark ? 0.55 : 0.72),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.8)),
+      ),
+      child: Column(
+        children: [
+          GlowIcon(icon: icon, color: color, size: 17),
+          const SizedBox(height: 2),
+          CountUp(
+            value: value,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+            ),
+          ),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: scheme.onSurface.withValues(alpha: 0.55),
+              fontSize: 10.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Quick actions — the three things people actually do here
+// ---------------------------------------------------------------------------
+
+class _QuickActions extends StatelessWidget {
+  const _QuickActions({
+    required this.onAdd,
+    required this.onSurprise,
+    required this.onList,
+    required this.listProgress,
+  });
+
+  final VoidCallback onAdd;
+  final VoidCallback onSurprise;
+
+  /// Null when there is no saved list yet — the chip is then omitted rather
+  /// than shown dead.
+  final VoidCallback? onList;
+  final String listProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ActionChip(
+              icon: Icons.add_rounded,
+              color: AppTheme.terracotta,
+              label: 'New recipe',
+              subtitle: 'Type or paste',
+              onTap: onAdd,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _ActionChip(
+              icon: Icons.shuffle_rounded,
+              color: const Color(0xFF8E24AA),
+              label: 'Surprise me',
+              subtitle: 'Pick for me',
+              onTap: onSurprise,
+            ),
+          ),
+          if (onList != null) ...[
+            const SizedBox(width: 10),
+            Expanded(
+              child: _ActionChip(
+                icon: Icons.shopping_basket_rounded,
+                color: AppTheme.checkGreen,
+                label: 'My list',
+                subtitle: listProgress.isEmpty ? 'Resume' : '$listProgress done',
+                onTap: onList!,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionChip extends StatelessWidget {
+  const _ActionChip({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+
+    return PressableScale(
+      onTap: onTap,
+      pressedScale: 0.95,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 8),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest.withValues(alpha: dark ? 0.55 : 0.72),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.8)),
+        ),
+        child: Column(
+          children: [
+            GlowTile(
+              color: color,
+              size: 36,
+              radius: 11,
+              child: GlowIcon(icon: icon, color: color, size: 18),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: scheme.onSurface.withValues(alpha: 0.5),
+                fontSize: 10.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// "Ready in 30" — horizontal carousel of fast recipes
+// ---------------------------------------------------------------------------
+
+class _QuickPicks extends StatelessWidget {
+  const _QuickPicks({required this.recipes});
+
+  final List<Recipe> recipes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionTitle(
+            icon: Icons.bolt_rounded,
+            color: Color(0xFFF9A825),
+            title: 'Ready in 30',
+            subtitle: 'Fast wins for busy nights',
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 152,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(bottom: 4),
+              itemCount: recipes.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, i) => StaggeredEntrance(
+                index: i,
+                child: _QuickPickCard(recipe: recipes[i]),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickPickCard extends StatelessWidget {
+  const _QuickPickCard({required this.recipe});
+
+  final Recipe recipe;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return SizedBox(
+      width: 152,
+      child: PressableScale(
+        onTap: () => Navigator.of(context).push(
+          sharedAxisRoute(page: RecipeDetailScreen(recipe: recipe)),
+        ),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(recipe.emoji, style: const TextStyle(fontSize: 24)),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: scheme.primaryContainer.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        formatMinutes(recipe.minutes ?? 0),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: scheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  recipe.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${recipe.ingredients.length} ingredients',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Section header, count badge, tip card, no-match state
+// ---------------------------------------------------------------------------
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({
+    super.key,
+    required this.icon,
+    required this.color,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: 2, bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: GlowIcon(icon: icon, color: color, size: 17),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (trailing != null) trailing!,
+        ],
+      ),
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  const _CountBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        '$count',
+        style: theme.textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w800,
+          color: theme.colorScheme.onPrimaryContainer,
+        ),
+      ),
+    );
+  }
+}
+
+class _TipCard extends StatelessWidget {
+  const _TipCard({required this.onAdd});
+
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            GlowTile(
+              color: AppTheme.terracotta,
+              size: 44,
+              radius: 14,
+              child: GlowIcon(
+                icon: Icons.auto_awesome_rounded,
+                color: AppTheme.terracotta,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Paste it once, shop it forever',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Drop in any recipe — the parser sorts it into aisles for you.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurface.withValues(alpha: 0.6),
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              key: const ValueKey('tip_add_recipe'),
+              onPressed: onAdd,
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NoMatches extends StatelessWidget {
+  const _NoMatches({required this.tag, required this.onShowAll});
+
+  final String tag;
+  final VoidCallback onShowAll;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          children: [
+            GlowEmoji(emoji: '🔍', size: 30),
+            const SizedBox(height: 12),
+            Text(
+              'No “$tag” recipes yet',
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Try another pill, or add a recipe and tag it “$tag”.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.tonal(
+              onPressed: onShowAll,
+              child: const Text('Show all recipes'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Filter pills
 // ---------------------------------------------------------------------------
 
 /// Horizontal category filter pills. Selected pill fills with the sage
-/// primary; unselected ones are tonal surfaces. Horizontal-scrollable so the
-/// full tag set never wraps on small phones.
+/// primary (and glows in dark mode); unselected ones are tonal surfaces.
 class _FilterPills extends StatelessWidget {
   const _FilterPills({
     required this.tags,
@@ -318,16 +951,16 @@ class _FilterPills extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 44,
+      height: 48,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.only(bottom: 10),
         children: [
           _pill(
             context,
-            label: 'All',
-            selected: activeTag == 'All',
-            onTap: () => onSelected('All'),
+            label: AppController.allTag,
+            selected: activeTag == AppController.allTag,
+            onTap: () => onSelected(AppController.allTag),
           ),
           for (final tag in tags)
             _pill(
@@ -348,13 +981,16 @@ class _FilterPills extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final strength = selected ? glowStrengthFor(context) : 0.0;
+
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: PressableScale(
         onTap: onTap,
         pressedScale: 0.94,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           decoration: BoxDecoration(
@@ -363,6 +999,14 @@ class _FilterPills extends StatelessWidget {
             border: Border.all(
               color: selected ? scheme.primary : scheme.outlineVariant,
             ),
+            boxShadow: strength == 0
+                ? null
+                : [
+                    BoxShadow(
+                      color: scheme.primary.withValues(alpha: 0.5 * strength),
+                      blurRadius: 16 * strength,
+                    ),
+                  ],
           ),
           child: Center(
             child: Text(
@@ -370,7 +1014,7 @@ class _FilterPills extends StatelessWidget {
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: selected
-                        ? scheme.onPrimary
+                        ? (isDark ? Colors.white : scheme.onPrimary)
                         : scheme.onSurface.withValues(alpha: 0.75),
                   ),
             ),
@@ -381,42 +1025,9 @@ class _FilterPills extends StatelessWidget {
   }
 }
 
-class _LibraryHeader extends StatelessWidget {
-  const _LibraryHeader({super.key, required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12, left: 2),
-      child: Row(
-        children: [
-          Text(
-            'Your recipes',
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              '$count',
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: theme.colorScheme.onPrimaryContainer,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// ---------------------------------------------------------------------------
+// Recipe cards
+// ---------------------------------------------------------------------------
 
 class _RecipeCard extends StatelessWidget {
   const _RecipeCard({required this.recipe});
@@ -432,7 +1043,7 @@ class _RecipeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = _accents[recipe.id.hashCode.abs() % _accents.length];
+    final accent = _accents[(recipe.id.hashCode & 0x7fffffff) % _accents.length];
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -441,93 +1052,111 @@ class _RecipeCard extends StatelessWidget {
           sharedAxisRoute(page: RecipeDetailScreen(recipe: recipe)),
         ),
         child: Card(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: () => Navigator.of(context).push(
-              sharedAxisRoute(page: RecipeDetailScreen(recipe: recipe)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: accent.withValues(alpha: 0.35)),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Someone else's recipe (pasted or added by hand) gets a
+                    // little pencil so the shelf distinguishes it at a glance.
+                    GlowTile(
+                      color: accent,
+                      size: 56,
+                      radius: 16,
+                      child: Text(recipe.emoji,
+                          style: const TextStyle(fontSize: 28)),
                     ),
-                    child: Text(recipe.emoji, style: const TextStyle(fontSize: 28)),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(recipe.title,
-                            style: theme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(Icons.list_alt,
+                    if (recipe.id.startsWith('user_'))
+                      Positioned(
+                        right: -3,
+                        bottom: -3,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: theme.colorScheme.outlineVariant,
+                            ),
+                          ),
+                          child: Icon(Icons.edit_rounded,
+                              size: 11,
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.7)),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(recipe.title,
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.list_alt,
+                              size: 14,
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.5)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${recipe.ingredients.length} ingredients',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.55),
+                            ),
+                          ),
+                          if (recipe.minutes != null) ...[
+                            const SizedBox(width: 12),
+                            Icon(Icons.schedule,
                                 size: 14,
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                                color: theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.5)),
                             const SizedBox(width: 4),
                             Text(
-                              '${recipe.ingredients.length} ingredients',
+                              formatMinutes(recipe.minutes!),
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                                color: theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.55),
                               ),
                             ),
-                            // Time metadata (seed catalog); pasted recipes
-                            // have none and simply omit it.
-                            if (recipe.minutes != null) ...[
-                              const SizedBox(width: 12),
-                              Icon(Icons.schedule,
-                                  size: 14,
-                                  color:
-                                      theme.colorScheme.onSurface.withValues(alpha: 0.5)),
-                              const SizedBox(width: 4),
-                              Text(
-                                formatMinutes(recipe.minutes!),
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
-                                ),
-                              ),
-                            ],
                           ],
-                        ),
-                        // First tag chip, so the shelf reads at a glance.
-                        if (recipe.tags.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: accent.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                recipe.tags.first,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: accent,
-                                ),
+                        ],
+                      ),
+                      if (recipe.tags.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: accent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              recipe.tags.first,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: theme.brightness == Brightness.dark
+                                    ? Color.lerp(accent, Colors.white, 0.45)
+                                    : accent,
                               ),
                             ),
                           ),
-                        ],
+                        ),
                       ],
-                    ),
+                    ],
                   ),
-                  Icon(Icons.chevron_right, color: theme.colorScheme.outline),
-                ],
-              ),
+                ),
+                Icon(Icons.chevron_right, color: theme.colorScheme.outline),
+              ],
             ),
           ),
         ),
@@ -537,7 +1166,7 @@ class _RecipeCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Empty state: clean illustration + helpful prompt.
+// Empty state
 // ---------------------------------------------------------------------------
 
 class _EmptyState extends StatelessWidget {
@@ -556,43 +1185,29 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Simple "illustration": layered emoji composition, no image files.
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: scheme.primaryContainer.withValues(alpha: 0.5),
-                    shape: BoxShape.circle,
+            SizedBox(
+              width: 130,
+              height: 130,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  ClipOval(
+                    child: ColoredBox(
+                      color: scheme.primaryContainer.withValues(alpha: 0.45),
+                      child: const AuroraBackdrop(intensity: 0.32),
+                    ),
                   ),
-                ),
-                const Text('🥕', style: TextStyle(fontSize: 40)),
-                Positioned(
-                  top: 2,
-                  right: 14,
-                  child: Transform.rotate(
-                    angle: 0.35,
-                    child: const Text('🍅', style: TextStyle(fontSize: 26)),
-                  ),
-                ),
-                Positioned(
-                  bottom: 4,
-                  left: 16,
-                  child: Transform.rotate(
-                    angle: -0.3,
-                    child: const Text('🧄', style: TextStyle(fontSize: 22)),
-                  ),
-                ),
-              ],
+                  const RecipePilotMark(size: 74),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
-            Text('Your pantry is empty',
-                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            Text('Your cookbook is empty',
+                style: theme.textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
             Text(
-              'Paste any recipe below and it becomes a tidy,\ncategorized shopping list — instantly.',
+              'Add any recipe and it becomes a tidy,\ncategorized shopping list — instantly.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: scheme.onSurface.withValues(alpha: 0.6),
@@ -607,97 +1222,11 @@ class _EmptyState extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               ),
               onPressed: onAdd,
-              icon: const Icon(Icons.receipt_long),
-              label: const Text('Paste your first recipe'),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add your first recipe'),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Bottom sheet for pasting raw ingredient lines — parser does the rest.
-class _AddRecipeSheet extends StatefulWidget {
-  const _AddRecipeSheet();
-
-  @override
-  State<_AddRecipeSheet> createState() => _AddRecipeSheetState();
-}
-
-class _AddRecipeSheetState extends State<_AddRecipeSheet> {
-  final _title = TextEditingController();
-  final _lines = TextEditingController();
-
-  @override
-  void dispose() {
-    _title.dispose();
-    _lines.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final ingredients = _lines.text
-        .split('\n')
-        .map((l) => l.trim())
-        .where((l) => l.isNotEmpty)
-        .toList();
-    if (_title.text.trim().isEmpty || ingredients.isEmpty) return;
-
-    final app = context.app;
-    app.addRecipe(Recipe(
-      id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-      title: _title.text.trim(),
-      emoji: '🥘',
-      ingredients: ingredients,
-    ));
-    Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 8,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('New recipe', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _title,
-            decoration: const InputDecoration(
-              labelText: 'Title',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _lines,
-            maxLines: 6,
-            textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              labelText: 'Ingredients (one per line)',
-              hintText: '2 cups spinach, chopped\n4 cloves garlic, minced',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.terracotta,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: _submit,
-            icon: const Icon(Icons.auto_fix_high),
-            label: const Text('Save recipe'),
-          ),
-        ],
       ),
     );
   }

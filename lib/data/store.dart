@@ -18,6 +18,7 @@ class GroceryStore {
   static const _listBox = 'grocery_list';
   static const _settingsBox = 'settings';
   static const _celebrationsKey = 'celebrations';
+  static const _glowKey = 'glow_effects';
 
   final bool _inMemory;
   final _memoryBoxes = <String, Map<dynamic, dynamic>>{};
@@ -81,6 +82,11 @@ class GroceryStore {
   Future<void> saveRecipe(Recipe recipe) =>
       _put(_recipesBox, recipe.id, recipe.toMap());
 
+  /// Removes a recipe permanently. Only user-created recipes are deletable
+  /// from the UI: built-ins are re-inserted by the seed merge on every launch,
+  /// so deleting one would silently resurrect it.
+  Future<void> deleteRecipe(String id) => _delete(_recipesBox, id);
+
   // ---- Generated grocery list ----
 
   Future<void> saveList(GroceryListResult result) async {
@@ -134,6 +140,13 @@ class GroceryStore {
 
   Future<void> saveCelebrations(bool value) =>
       _put(_settingsBox, _celebrationsKey, value);
+
+  /// Dark-mode glow halos (defaults to ON).
+  Future<bool> loadGlowEffects() async =>
+      _get(_settingsBox, _glowKey, true) as bool;
+
+  Future<void> saveGlowEffects(bool value) =>
+      _put(_settingsBox, _glowKey, value);
 
   // ---- Unified Hive / in-memory primitives ----
 
@@ -213,6 +226,9 @@ class AppController extends ChangeNotifier {
   /// finished (Settings toggle; on by default).
   bool celebrationsOn = true;
 
+  /// Whether icons emit their soft halo in dark mode (Settings toggle).
+  bool glowEffects = true;
+
   // ---- Category filter (home screen pills) ----
 
   /// The pill label for "show everything".
@@ -278,6 +294,7 @@ class AppController extends ChangeNotifier {
     recipes = await store.loadRecipes();
     darkMode = await store.loadDarkMode();
     celebrationsOn = await store.loadCelebrations();
+    glowEffects = await store.loadGlowEffects();
     list = await store.loadList(parser);
     _rebuildChecked();
     notifyListeners();
@@ -299,6 +316,13 @@ class AppController extends ChangeNotifier {
     await store.saveRecipe(recipe);
     recipes = [...recipes, recipe];
     notifyListeners();
+  }
+
+  /// Deletes a user-created recipe (see [GroceryStore.deleteRecipe]).
+  Future<void> deleteRecipe(String id) async {
+    recipes = recipes.where((r) => r.id != id).toList();
+    notifyListeners();
+    await store.deleteRecipe(id);
   }
 
   /// BUG FIX (ingredient meter): this used to mutate only [_checkedIds] and
@@ -404,6 +428,12 @@ class AppController extends ChangeNotifier {
     celebrationsOn = !celebrationsOn;
     notifyListeners();
     await store.saveCelebrations(celebrationsOn);
+  }
+
+  Future<void> toggleGlowEffects() async {
+    glowEffects = !glowEffects;
+    notifyListeners();
+    await store.saveGlowEffects(glowEffects);
   }
 
   void _rebuildChecked() {
