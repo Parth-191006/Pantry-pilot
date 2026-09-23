@@ -484,12 +484,6 @@ class _StaggeredEntranceState extends State<StaggeredEntrance>
   }
 
   @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: _a,
