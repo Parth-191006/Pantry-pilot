@@ -64,10 +64,16 @@ lib/
 
 **Flow:** Splash (logo/tagline animation) → fade → Home (photo hero — bundled
 produce image under a dark scrim, time-aware greeting, Ken Burns drift, CTA —
-plus the recipe library) → (shared-axis push) → Recipe Detail → tap CTA →
-parser runs → (shared-axis push) → Grocery List (live progress meter + ring,
-staggered section entrance). Settings (⚙️ corner on Home) holds dark mode,
-celebrations, the About text, and data controls.
+plus category filter pills and the recipe library) → (shared-axis push) →
+Recipe Detail → tap CTA → parser runs → (shared-axis push) → Grocery List
+(live progress meter + ring, staggered section entrance). Settings (⚙️ corner
+on Home) holds dark mode, celebrations, the About text, and data controls.
+
+**Catalog:** 10 built-in recipes across Italian, Mexican, Asian, and
+Mediterranean cuisines, each tagged (`Quick & Easy`, `Dinner`, `Vegetarian`,
+`High Protein`, cuisine). Filter pills are derived live from the library, so
+user-pasted tags would surface too. Seeds merge into storage on every launch:
+new built-ins appear for existing installs, user recipes are never touched.
 
 ## Animation hookup guide
 

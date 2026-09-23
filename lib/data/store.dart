@@ -51,9 +51,25 @@ class GroceryStore {
   // ---- Recipes ----
 
   Future<List<Recipe>> loadRecipes() async {
-    if (_values(_recipesBox).isEmpty) {
-      // First launch (offline): seed built-in recipes.
-      for (final r in seedRecipes) {
+    // Seed merge: on every launch, insert built-ins that aren't stored yet so
+    // new catalog entries appear for existing installs. User-pasted recipes
+    // are never touched; built-ins created before the metadata era (no
+    // 'minutes'/'tags' keys at all) are refreshed to the current entry,
+    // which is safe because the UI offers no editing of built-ins.
+    final stored = _values(_recipesBox)
+        .map((m) => Map<dynamic, dynamic>.from(m as Map))
+        .toList();
+    for (final r in seedRecipes) {
+      Map<dynamic, dynamic>? match;
+      for (final m in stored) {
+        if (m['id'] == r.id) {
+          match = m;
+          break;
+        }
+      }
+      if (match == null) {
+        await _put(_recipesBox, r.id, r.toMap());
+      } else if (!match.containsKey('minutes') && !match.containsKey('tags')) {
         await _put(_recipesBox, r.id, r.toMap());
       }
     }
@@ -167,6 +183,13 @@ class GroceryStore {
 
   dynamic _get(String name, dynamic key, dynamic defaultValue) =>
       _inMemory ? (_mem(name)[key] ?? defaultValue) : Hive.box(name).get(key, defaultValue: defaultValue);
+
+  /// Test hook: insert a raw map as if an older app version had written it
+  /// (in-memory stores only). Used to simulate pre-metadata installs.
+  Future<void> debugPutRaw(String name, dynamic key, Map<dynamic, dynamic> value) async {
+    assert(_inMemory, 'debugPutRaw is only available for in-memory stores');
+    _mem(name)[key] = value;
+  }
 }
 
 /// Single app-wide observable state, provided via InheritedNotifier.
@@ -189,6 +212,52 @@ class AppController extends ChangeNotifier {
   /// Whether the full-screen confetti celebration plays when the list is
   /// finished (Settings toggle; on by default).
   bool celebrationsOn = true;
+
+  // ---- Category filter (home screen pills) ----
+
+  /// The pill label for "show everything".
+  static const String allTag = 'All';
+
+  /// Curated ordering for the most useful pills; everything else sorts after,
+  /// alphabetically.
+  static const List<String> _tagPriority = [
+    'Quick & Easy',
+    'Dinner',
+    'Vegetarian',
+    'High Protein',
+  ];
+
+  String? _activeTag; // null → [allTag]
+
+  String get activeTag => _activeTag ?? allTag;
+
+  /// Every tag present in the library, prioritized then alphabetical —
+  /// derived live so user-pasted tags would surface too.
+  List<String> get availableTags {
+    final tags = <String>{};
+    for (final r in recipes) {
+      tags.addAll(r.tags);
+    }
+    final rest = tags.difference(_tagPriority.toSet()).toList()..sort();
+    return [
+      ..._tagPriority.where(tags.contains),
+      ...rest,
+    ];
+  }
+
+  /// Recipes matching the active pill (or everything when on "All").
+  List<Recipe> get visibleRecipes {
+    final tag = _activeTag;
+    if (tag == null) return recipes;
+    return recipes.where((r) => r.tags.contains(tag)).toList(growable: false);
+  }
+
+  void setActiveTag(String? tag) {
+    final next = (tag == null || tag == allTag) ? null : tag;
+    if (next == _activeTag) return;
+    _activeTag = next;
+    notifyListeners();
+  }
 
   bool get hasList => list != null && list!.totalItems > 0;
 

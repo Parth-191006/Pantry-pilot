@@ -48,6 +48,33 @@ void main() {
     expect(controller.darkMode, isTrue);
   });
 
+  testWidgets('filter pills narrow the shelf and All restores it',
+      (tester) async {
+    final controller = makeController();
+    await controller.bootstrap();
+
+    await pumpIntoHome(tester, PantryPilotApp(controller: controller));
+
+    expect(controller.visibleRecipes.length, 10);
+
+    // Tap the Vegetarian pill (visible below the hero).
+    await tester.tap(find.text('Vegetarian').first);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    // Controller filtered; a meaty recipe vanished from the shelf.
+    expect(controller.activeTag, 'Vegetarian');
+    expect(controller.visibleRecipes.length, lessThan(10));
+    expect(find.text('Chicken Fajita Bowl'), findsNothing);
+    // Staggered cascade replays for the new set (60ms x index + 420ms).
+    await tester.pump(const Duration(milliseconds: 1200));
+    expect(find.text('Garlic Butter Pasta'), findsOneWidget);
+
+    // Back to All.
+    await tester.tap(find.text('All'));
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(controller.visibleRecipes.length, 10);
+  });
+
   testWidgets('ingredient meter updates live as items are checked',
       (tester) async {
     final controller = makeController();

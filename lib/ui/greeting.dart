@@ -8,3 +8,11 @@ String timeGreeting(DateTime now) {
   if (h < 22) return 'Good evening, chef 👋';
   return 'Late-night cravings?';
 }
+
+/// Compact duration label for recipe cards: "20 min", "1 h 5 min".
+String formatMinutes(int minutes) {
+  if (minutes < 60) return '$minutes min';
+  final h = minutes ~/ 60;
+  final m = minutes % 60;
+  return m == 0 ? '$h h' : '$h h $m min';
+}

@@ -33,7 +33,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final app = context.app;
-    final recipes = app.recipes;
+    final recipes = app.visibleRecipes;
+    final filters = app.availableTags;
 
     return Scaffold(
       appBar: AppBar(
@@ -48,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: recipes.isEmpty
+      body: app.recipes.isEmpty
           ? _EmptyState(
               onAdd: () => _showAddSheet(context),
             )
@@ -57,16 +58,27 @@ class _HomeScreenState extends State<HomeScreen> {
                 constraints: const BoxConstraints(maxWidth: HomeScreen._maxContentWidth),
                 child: ListView.builder(
                   padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
-                  itemCount: recipes.length + 2,
+                  // hero + pills + header + filtered recipes
+                  itemCount: recipes.length + 3,
                   itemBuilder: (context, i) {
                     if (i == 0) return _HeroPhotoCard(onExplore: () => _explorePantry(context));
                     if (i == 1) {
+                      return _FilterPills(
+                        tags: filters,
+                        activeTag: app.activeTag,
+                        onSelected: app.setActiveTag,
+                      );
+                    }
+                    if (i == 2) {
                       return _LibraryHeader(key: _libraryKey, count: recipes.length);
                     }
-                    final recipe = recipes[i - 2];
+                    final recipe = recipes[i - 3];
+                    // Keyed by filter+id so switching pills replays a fresh
+                    // slide-up cascade on the new set — not just a reshuffle.
                     return StaggeredEntrance(
-                      index: i - 2,
-                      baseDelay: const Duration(milliseconds: 160),
+                      key: ValueKey('${app.activeTag}:${recipe.id}'),
+                      index: i - 3,
+                      baseDelay: const Duration(milliseconds: 90),
                       child: _RecipeCard(recipe: recipe),
                     );
                   },
@@ -289,6 +301,86 @@ class _ProduceBackdrop extends CustomPainter {
 // Library header + recipe cards
 // ---------------------------------------------------------------------------
 
+/// Horizontal category filter pills. Selected pill fills with the sage
+/// primary; unselected ones are tonal surfaces. Horizontal-scrollable so the
+/// full tag set never wraps on small phones.
+class _FilterPills extends StatelessWidget {
+  const _FilterPills({
+    required this.tags,
+    required this.activeTag,
+    required this.onSelected,
+  });
+
+  final List<String> tags;
+  final String activeTag;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.only(bottom: 10),
+        children: [
+          _pill(
+            context,
+            label: 'All',
+            selected: activeTag == 'All',
+            onTap: () => onSelected('All'),
+          ),
+          for (final tag in tags)
+            _pill(
+              context,
+              label: tag,
+              selected: activeTag == tag,
+              onTap: () => onSelected(tag),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pill(
+    BuildContext context, {
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: PressableScale(
+        onTap: onTap,
+        pressedScale: 0.94,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: selected ? scheme.primary : scheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected ? scheme.primary : scheme.outlineVariant,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: selected
+                        ? scheme.onPrimary
+                        : scheme.onSurface.withValues(alpha: 0.75),
+                  ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _LibraryHeader extends StatelessWidget {
   const _LibraryHeader({super.key, required this.count});
 
@@ -390,8 +482,46 @@ class _RecipeCard extends StatelessWidget {
                                 color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
                               ),
                             ),
+                            // Time metadata (seed catalog); pasted recipes
+                            // have none and simply omit it.
+                            if (recipe.minutes != null) ...[
+                              const SizedBox(width: 12),
+                              Icon(Icons.schedule,
+                                  size: 14,
+                                  color:
+                                      theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                              const SizedBox(width: 4),
+                              Text(
+                                formatMinutes(recipe.minutes!),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
+                        // First tag chip, so the shelf reads at a glance.
+                        if (recipe.tags.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                recipe.tags.first,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: accent,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

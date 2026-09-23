@@ -89,6 +89,8 @@ class Recipe {
     required this.title,
     required this.emoji,
     required this.ingredients,
+    this.minutes,
+    this.tags = const [],
   });
 
   final String id;
@@ -98,11 +100,21 @@ class Recipe {
   /// Raw ingredient lines exactly as a user would paste them.
   final List<String> ingredients;
 
+  /// Approximate total time in minutes (null → unknown; user-pasted recipes).
+  final int? minutes;
+
+  /// Free-form category labels for the home-screen filter pills
+  /// (e.g. 'Dinner', 'Vegetarian', 'High Protein'). Seeds ship curated tags;
+  /// user-pasted recipes start untagged and match "All" only.
+  final List<String> tags;
+
   Map<String, dynamic> toMap() => {
         'id': id,
         'title': title,
         'emoji': emoji,
         'ingredients': ingredients,
+        'minutes': minutes,
+        'tags': tags,
       };
 
   factory Recipe.fromMap(Map<dynamic, dynamic> map) => Recipe(
@@ -111,5 +123,9 @@ class Recipe {
         emoji: (map['emoji'] ?? '🍽️') as String,
         ingredients:
             (map['ingredients'] as List? ?? const []).map((e) => '$e').toList(),
+        minutes: map['minutes'] as int?,
+        tags: (map['tags'] as List? ?? const [])
+            .map((e) => '$e')
+            .toList(growable: false),
       );
 }
