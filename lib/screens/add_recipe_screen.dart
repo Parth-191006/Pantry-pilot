@@ -462,6 +462,10 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
           child: Center(
+            // heightFactor: 1 shrink-wraps the sheet vertically — without it
+            // Center expands to the Scaffold's full loose height and the CTA
+            // floats in the middle of the screen (covering the form).
+            heightFactor: 1.0,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: SizedBox(

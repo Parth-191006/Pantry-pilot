@@ -192,6 +192,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
           child: Center(
+            // heightFactor: 1 shrink-wraps the sheet vertically, so the CTA
+            // hugs the bottom of the screen instead of floating over the
+            // ingredient list (Center expands into the Scaffold's loose
+            // height constraint otherwise).
+            heightFactor: 1.0,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: SizedBox(

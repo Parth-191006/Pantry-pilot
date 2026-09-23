@@ -84,6 +84,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pump(const Duration(milliseconds: 100));
 
+    // The save CTA must hug the bottom of the screen. Regression guard: a
+    // bare `Center` in the bottom-sheet slot expands into the Scaffold's loose
+    // height constraint, which floated the button over the middle of the form
+    // (and swallowed taps meant for the fields underneath).
+    final ctaRect = tester.getRect(find.byKey(const ValueKey('save_recipe')));
+    expect(ctaRect.top, greaterThan(2200 / 2)); // well below the vertical middle
+    expect(ctaRect.bottom, lessThanOrEqualTo(1500));
+
     // Typing the title suggests an emoji offline — no picker needed.
     await tester.enterText(
         find.byKey(const ValueKey('recipe_title')), 'Creamy Garlic Pasta');
@@ -125,9 +133,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pump(const Duration(milliseconds: 100));
 
+    // Scroll the mode pills into view before tapping (the studio is a form, and
+    // on a phone-sized surface the ingredients card can sit below the fold).
+    await tester.ensureVisible(find.text('Paste a block'));
+    await tester.pump(const Duration(milliseconds: 150));
     await tester.tap(find.text('Paste a block'));
     await tester.pump(const Duration(milliseconds: 250));
 
+    await tester.ensureVisible(find.byKey(const ValueKey('bulk_paste')));
+    await tester.pump(const Duration(milliseconds: 150));
     await tester.enterText(
       find.byKey(const ValueKey('bulk_paste')),
       '2 cups spinach, chopped\n'
