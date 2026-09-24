@@ -17,7 +17,6 @@ class GroceryStore {
   static const _recipesBox = 'recipes';
   static const _listBox = 'grocery_list';
   static const _settingsBox = 'settings';
-  static const _celebrationsKey = 'celebrations';
   static const _glowKey = 'glow_effects';
 
   final bool _inMemory;
@@ -134,13 +133,6 @@ class GroceryStore {
 
   Future<void> saveDarkMode(bool dark) => _put(_settingsBox, 'dark', dark);
 
-  /// Full-screen celebration toggle (defaults to ON).
-  Future<bool> loadCelebrations() async =>
-      _get(_settingsBox, _celebrationsKey, true) as bool;
-
-  Future<void> saveCelebrations(bool value) =>
-      _put(_settingsBox, _celebrationsKey, value);
-
   /// Dark-mode glow halos (defaults to ON).
   Future<bool> loadGlowEffects() async =>
       _get(_settingsBox, _glowKey, true) as bool;
@@ -222,10 +214,6 @@ class AppController extends ChangeNotifier {
   GroceryListResult? list;
   bool darkMode = false;
 
-  /// Whether the full-screen confetti celebration plays when the list is
-  /// finished (Settings toggle; on by default).
-  bool celebrationsOn = true;
-
   /// Whether icons emit their soft halo in dark mode (Settings toggle).
   bool glowEffects = true;
 
@@ -293,7 +281,6 @@ class AppController extends ChangeNotifier {
     await store.init(storagePath: storagePath);
     recipes = await store.loadRecipes();
     darkMode = await store.loadDarkMode();
-    celebrationsOn = await store.loadCelebrations();
     glowEffects = await store.loadGlowEffects();
     list = await store.loadList(parser);
     _rebuildChecked();
@@ -422,12 +409,6 @@ class AppController extends ChangeNotifier {
     darkMode = !darkMode;
     notifyListeners();
     await store.saveDarkMode(darkMode);
-  }
-
-  Future<void> toggleCelebrations() async {
-    celebrationsOn = !celebrationsOn;
-    notifyListeners();
-    await store.saveCelebrations(celebrationsOn);
   }
 
   Future<void> toggleGlowEffects() async {

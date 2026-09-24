@@ -22,8 +22,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
   bool _celebrate = false;
 
   void _onToggled(bool nowComplete) {
-    final app = context.app;
-    if (nowComplete && !_celebrate && app.celebrationsOn) {
+    if (nowComplete && !_celebrate) {
       setState(() => _celebrate = true);
       Future.delayed(const Duration(milliseconds: 1800), () {
         if (mounted) setState(() => _celebrate = false);

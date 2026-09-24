@@ -669,17 +669,27 @@ class _PressableScaleState extends State<PressableScale> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onTap != null;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: enabled ? (_) => setState(() => _down = true) : null,
-      onTapCancel: enabled ? () => setState(() => _down = false) : null,
-      onTapUp: enabled ? (_) => setState(() => _down = false) : null,
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _down ? widget.pressedScale : 1.0,
-        duration: const Duration(milliseconds: 120),
-        curve: _down ? Curves.easeOut : Curves.easeOutBack,
-        child: widget.child,
+    // Semantics(button:) so screen readers announce cards and pills as
+    // pressable; MouseRegion gives desktop/web the pointing-hand cursor.
+    // The scale effect itself is purely visual and must never intercept the
+    // child's own gesture handling (Material buttons keep their ink + tap).
+    return Semantics(
+      button: enabled,
+      child: MouseRegion(
+        cursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: enabled ? (_) => setState(() => _down = true) : null,
+          onTapCancel: enabled ? () => setState(() => _down = false) : null,
+          onTapUp: enabled ? (_) => setState(() => _down = false) : null,
+          onTap: widget.onTap,
+          child: AnimatedScale(
+            scale: _down ? widget.pressedScale : 1.0,
+            duration: const Duration(milliseconds: 120),
+            curve: _down ? Curves.easeOut : Curves.easeOutBack,
+            child: widget.child,
+          ),
+        ),
       ),
     );
   }

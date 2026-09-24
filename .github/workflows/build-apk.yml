@@ -1,12 +1,16 @@
 name: Build Android APK
 
-# Builds a release APK on every push to main/master, plus on-demand from the
-# Actions tab. The APK is uploaded as a downloadable artifact — no local
-# Flutter install required.
+# Builds a signed release APK on every push to main/master, plus on-demand.
+# Each release build is attached to a permanent GitHub Release (tagged
+# v<version> from pubspec.yaml), so downloads never expire like Actions
+# artifacts do.
 on:
   push:
     branches: [main, master]
   workflow_dispatch:
+
+permissions:
+  contents: write # required for softprops/action-gh-release to attach files
 
 jobs:
   build:
@@ -39,6 +43,70 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      # Release signing. The keystore is generated fresh from repo secrets
+      # when they exist; without them the build stays debug-signed (still
+      # installable, just not Play-Upload-ready).
+      - name: Decode signing keystore (if configured)
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "No keystore secret found — building a debug-signed APK."
+          fi
+
+      - name: Write key.properties (if configured)
+        if: steps.keystore.outputs.configured == 'true'
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cat > android/key.properties <<EOF
+          storeFile=upload-keystore.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+      # Without this, every CI build signs with a fresh debug key and new
+      # installs can't replace old ones ("App not installed").
+      - name: Patch Gradle release signing
+        run: python tool/patch_gradle_signing.py
+
+      # A stable CI keystore: generated once, cached across runs, so all
+      # releases share one signature even without user-supplied secrets.
+      - name: Restore cached CI keystore
+        id: keystore_cache
+        if: steps.keystore.outputs.configured != 'true'
+        uses: actions/cache@v4
+        with:
+          path: android/app/ci-release.jks
+          key: ci-release-keystore-v1
+
+      - name: Generate CI keystore (first run only)
+        if: steps.keystore.outputs.configured != 'true' && steps.keystore_cache.outputs.cache-hit != 'true'
+        run: |
+          keytool -genkeypair -v \
+            -keystore android/app/ci-release.jks \
+            -storepass recipepilot-ci -keypass recipepilot-ci \
+            -alias ci-release -keyalg RSA -keysize 2048 -validity 36500 \
+            -dname "CN=Recipe Pilot CI, OU=OSS, O=Recipe Pilot, C=US"
+
+      - name: Write CI key.properties
+        if: steps.keystore.outputs.configured != 'true'
+        run: |
+          cat > android/key.properties <<EOF
+          storeFile=ci-release.jks
+          storePassword=recipepilot-ci
+          keyAlias=ci-release
+          keyPassword=recipepilot-ci
+          EOF
 
       # Launcher icon + home-screen label. The icon is generated from the same
       # vector geometry the app paints in-app (tool/generate_icons.py), so the
@@ -81,9 +149,43 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release
 
+      - name: Stage APK with versioned name
+        id: apk
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | cut -d' ' -f2 | cut -d'+' -f1)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             "dist/Recipe-Pilot-v$VERSION.apk"
+
+      # Artifacts expire after 90 days; a GitHub Release is permanent and
+      # gives the repo a fixed, shareable download link on its front page.
+      - name: Attach APK to a GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.apk.outputs.version }}
+          name: Recipe Pilot v${{ steps.apk.outputs.version }}
+          body: |
+            **Recipe Pilot v${{ steps.apk.outputs.version }}** — offline-first recipe library & Recipe → Grocery List converter.
+
+            ## Install
+            1. Download `Recipe-Pilot-v${{ steps.apk.outputs.version }}.apk` below.
+            2. Open it on your Android phone and allow *Install unknown apps* for your browser if asked.
+            3. If **Play Protect** shows a scan prompt, tap **More details → Install anyway** — the app is unsigned-store open-source software, has no ads/tracking, and never touches the network.
+            4. Existing installs upgrade in place and keep all saved recipes.
+
+            ## What's inside
+            - Fully offline: Hive storage, rule-based parser, zero analytics
+            - Cartoon kitchen hero, glowing dark mode, hand-built animations
+            - Add-recipe studio with paste-a-block splitting and live aisle preview
+          files: dist/Recipe-Pilot-v*.apk
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: recipe-pilot-apk-${{ github.run_number }}
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: dist/Recipe-Pilot-v*.apk
           if-no-files-found: error

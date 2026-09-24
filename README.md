@@ -1,48 +1,68 @@
-# 🌿 Recipe Pilot — recipe library + Recipe → Grocery List (Flutter)
+<div align="center">
 
-Offline-first cookbook and Recipe-to-Grocery-List converter: keep your recipes,
-open one, and the offline parser turns its ingredient lines into categorized
-aisle sections you can tick off in the store. Tactile check-off
-micro-interactions, a shared-axis screen transition, glow-lit dark mode, and
-Hive-backed persistence. **No network, no animation libraries** — Hive is the
-only runtime dependency; every animation is hand-built on Flutter's own tools.
+<img src="assets/icon/app_icon.png" width="120" alt="Recipe Pilot logo" />
 
-## Run it
+# Recipe Pilot
 
-The repo ships Dart sources only; `flutter create .` generates the Android
-platform folder (Gradle wrapper, manifest, icons) on first setup.
+**Plan it. Shop it. Cook it.** — an offline-first recipe library that turns any
+recipe into a tidy, aisle-by-aisle grocery list in one tap.
 
-```bash
-flutter create . --platforms android   # one-time: generates android/
-flutter pub get
-dart run flutter_launcher_icons       # writes the launcher icons (Android)
-flutter run                           # device/emulator
-flutter build apk --release           # APK → build/app/outputs/flutter-apk/
+[![Build APK](https://github.com/Parth-191006/Pantry-pilot/actions/workflows/build-apk.yml/badge.svg)](https://github.com/Parth-191006/Pantry-pilot/actions/workflows/build-apk.yml)
+[![Latest release](https://img.shields.io/github/v/release/Parth-191006/Pantry-pilot?label=APK&sort=semver)](https://github.com/Parth-191006/Pantry-pilot/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-Android-green)](#-install-on-your-phone)
+[![Offline](https://img.shields.io/badge/offline-100%25-success)](#-offlinefirst-design)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+</div>
+
+---
+
+## 📲 Install on your phone
+
+> **No Flutter, no Android Studio, no building.** Every push to `main` produces
+> a ready-to-install APK and attaches it to a permanent release.
+
+1. **[Download the latest APK →](https://github.com/Parth-191006/Pantry-pilot/releases/latest)**
+   (<https://github.com/Parth-191006/Pantry-pilot/releases/latest> — look for
+   `Recipe-Pilot-v*.apk` under *Assets*)
+2. Copy it to your phone (or just open the link on your phone) and tap it.
+3. Android will ask to allow installs from your browser — allow it once.
+4. **If Play Protect shows a "scanning" or "unknown app" prompt:** tap
+   **More details → Install anyway**. That warning appears for *any* app
+   installed outside the Play Store; Recipe Pilot is open-source, has
+   **no ads, no tracking, and never touches the network**, so there is
+   nothing for it to scan for.
+5. That's it. Updates install over the old version and keep all your recipes.
+
+Prefer to build it yourself? [Build from source](#-build-from-source) below.
+
+## ✨ What it does
+
+| | |
+|---|---|
+| 📖 **Library** | 10 built-in recipes across Italian, Mexican, Asian and Mediterranean cuisines — plus unlimited recipes of your own. |
+| 🧠 **Offline parser** | Type or paste `2 cups spinach, chopped` and the rule-based parser extracts amount, unit and name, merges synonyms (*green onions → Scallions*), and files it under 🥬 **Produce**. |
+| 🛒 **Smart list** | One tap converts any recipe into categorized aisle sections — Produce, Dairy & Eggs, Pantry, Spices… — with a live progress meter. |
+| ✅ **Tactile check-off** | Checkboxes pop with a confetti micro-burst, rows dim and strike through, and finishing the list triggers a full celebration. |
+| ➕ **Add-recipe studio** | Auto-suggested emoji, paste-a-block → split into rows, and a *live aisle preview* that runs the real parser as you type. |
+| 🌙 **Night kitchen** | Hand-tuned dark mode with soft glowing icons (toggleable), a cartoon kitchen hero that switches to a night scene, and aurora-lighted splash. |
+| 🔒 **Private by design** | Everything lives in Hive boxes on your device. Zero network calls, zero analytics, zero ads. |
+
+## 🎬 The flow
+
+```
+Splash ──▶ Home ──▶ Recipe Detail ──▶ Grocery List
+             │                            │
+             │  cartoon hero · stats ·    │  aisle sections · live meter ·
+             │  quick actions · carousel ·│  check-off micro-interactions ·
+             │  filter pills · shelf      │  confetti at 100%
+             └──▶ Add-Recipe Studio ──────┘
 ```
 
-## Build the APK without installing Flutter (GitHub Actions)
+Every transition is a 340 ms shared-axis slide+fade+scale; every card
+stagger-cascades into place; filter pills replay the cascade for the new set.
 
-A workflow at `.github/workflows/build-apk.yml` builds the APK in the cloud:
-
-1. Push this folder to a GitHub repository (`main` or `master` branch).
-2. Open the repo's **Actions** tab → the **Build Android APK** run.
-3. When it goes green, scroll to **Artifacts** → download
-   `recipe-pilot-apk-*`, unzip, and sideload the APK onto your phone.
-
-The workflow also **rebrands the Android shell**: it runs
-`flutter_launcher_icons` (using the artwork in `assets/icon/`) and rewrites
-`android:label` to `Recipe Pilot`, so the launcher shows the real logo and name
-even though the platform folder is generated fresh in CI.
-
-Trigger it anytime from **Actions → Build Android APK → Run workflow**.
-
-Optionally verify logic + widgets locally:
-
-```bash
-flutter test
-```
-
-## Screen architecture
+## 🧩 Screen architecture
 
 ```
 lib/
@@ -59,50 +79,60 @@ lib/
 │   └── store.dart             # Hive persistence + AppController (ChangeNotifier)
 ├── ui/
 │   ├── animations.dart        # ALL animation primitives (self-contained)
-│   ├── logo.dart              # vector brand mark (leaf + check badge)
+│   ├── logo.dart              # vector brand mark (recipe book + fork badge)
 │   ├── glow.dart              # glow halos for dark mode (icons/emoji/tiles)
 │   └── greeting.dart          # time-aware greeting + duration formatting
 └── screens/
     ├── splash_screen.dart         # aurora + logo pulse + shiny wordmark → Home
-    ├── home_screen.dart           # hero, stats, quick actions, carousel, shelf
+    ├── home_screen.dart           # cartoon hero, stats, quick actions, shelf
     ├── add_recipe_screen.dart     # the add-recipe studio (paste/rows, preview)
     ├── recipe_detail_screen.dart  # raw recipe + "Generate grocery list" CTA
     ├── grocery_list_screen.dart   # the payoff: categories, check-off, confetti
-    └── settings_screen.dart       # dark mode, glow, celebrations, About, data
+    └── settings_screen.dart       # dark mode, glow, About, data controls
 tool/
-└── generate_icons.py           # renders assets/icon/*.png (pure stdlib)
+├── generate_icons.py           # renders assets/icon/*.png (pure stdlib)
+└── patch_gradle_signing.py     # wires release signing into the generated build
 ```
 
-**Flow:** Splash → cross-fade → **Home** (photo hero with a shiny tagline and
-Ken Burns drift → library stats → quick actions → “Ready in 30” carousel →
-filter pills → the shelf) → shared-axis push → **Recipe Detail** → tap CTA →
-parser runs → shared-axis push → **Grocery List** (live meter + ring,
-staggered aisle entrance, confetti at 100%).
+**One logo, three surfaces.** `lib/ui/logo.dart` draws the mark — an open
+recipe book with a plated dish and a terracotta fork badge — as vector paths
+(app bar, splash, About). `tool/generate_icons.py` renders the same geometry to
+the launcher PNGs with plain `zlib` + `struct`, so the home-screen icon and the
+in-app logo can never drift apart.
 
-**Adding a recipe:** the beam-ringed `New recipe` action (or the tip card, or
-the empty state) opens the **studio**, which does four things to make typing on
-a phone painless:
+## 🏗 Build from source
 
-- **Auto-emoji** — typing “Creamy Garlic Pasta” pre-selects 🍝 from an offline
-  keyword map (tap the tile to override).
-- **Paste a block → split into rows** — drop a messy ingredient list and one
-  tap turns it into individual, editable lines.
-- **Live aisle preview** — the *real* parser runs as you type, so each line
-  shows the aisle it will land in before you save.
-- **Time + tags** — optional chips that feed the “Ready in 30” shelf and the
-  home filter pills.
+```bash
+flutter create . --platforms android   # one-time: generates android/
+flutter pub get
+python tool/generate_icons.py          # regenerate launcher art after logo edits
+python tool/patch_gradle_signing.py    # wire release signing (generated folder)
+dart run flutter_launcher_icons        # write launcher icons
+flutter run                            # device/emulator
+flutter build apk --release            # APK → build/app/outputs/flutter-apk/
+flutter test                           # logic + widget tests
+```
 
-User-created recipes carry a `user_…` id, show a small pencil on their card,
-and are the only ones you can delete (built-ins are re-seeded on every launch,
-so deleting one would resurrect it).
+## 🧠 Offline-first design
 
-**Catalog:** 10 built-in recipes across Italian, Mexican, Asian, and
-Mediterranean cuisines, each tagged (`Quick & Easy`, `Dinner`, `Vegetarian`,
-`High Protein`, cuisine). Filter pills are derived live from the library, so
-your own tags surface too. Seeds merge into storage on every launch: new
-built-ins appear for existing installs, your recipes are never touched.
+- **Storage:** Hive boxes (`recipes`, `grocery_list`, `settings`) hold plain
+  maps — no codegen, no TypeAdapters. `GroceryStore` is the *only* file that
+  touches Hive; swapping to MMKV or sqlite3 means rewriting one class.
+- **State:** one `AppController extends ChangeNotifier` exposes recipes, the
+  generated list, filters and checked-state as data; screens subscribe via
+  `InheritedNotifier` (`context.app`). Persistence writes are fire-and-forget so
+  toggling a checkbox never awaits disk.
+- **Parsing:** 100% rule-based, deterministic, and synchronous — identical input
+  always yields identical sections, which keeps entrance animations stable
+  across restarts.
+- **Imagery:** the hero is a `CustomPainter` cartoon scene and the logo is
+  vector paths — the APK ships **zero image assets**, and the app makes **zero
+  network calls**.
+- **Survives everything:** checked state persists on every toggle; seeds merge
+  on every launch so new built-ins appear for existing installs without
+  touching your recipes.
 
-## Animation hookup guide
+## ✨ Animation hookup guide
 
 Every animation lives in `lib/ui/animations.dart` and is a plain widget you can
 drop into any screen — nothing is coupled to this app's state layer. Several are
@@ -114,14 +144,14 @@ Flutter ports of [React Bits](https://reactbits.dev) components.
 | Tactile checkbox | `StrikeCheckbox(checked, onChanged)` | One controller orchestrates fill → checkmark sweep → pop → confetti micro-burst. Restores settled state when loaded from storage. |
 | Checked-row dimming | `CheckedItemAnimator(checked, child)` | AnimatedContainer tint + 55% opacity dim, driven only when `checked` flips. |
 | Strikethrough | `AnimatedStrikeText(checked, text)` | `AnimatedDefaultTextStyle` cross-fades the line through the text. |
-| Shopping progress | `ProgressRing`, `LinearProgressMeter` | Implicit tweens; the meter glides to every new fraction (this is the CSS-style width transition). |
+| Shopping progress | `ProgressRing`, `LinearProgressMeter` | Implicit tweens; the meter glides to every new fraction (the CSS-style width transition). |
 | Entrance cascade | `StaggeredEntrance(index: i, child: ...)` | 60 ms cascade slide+fade, cancellable timer (safe under dispose). |
 | Completion moment | `SectionConfetti(playing: ...)` | Full-screen particle rain, fires once when the last item is checked. |
-| Shiny text *(React Bits)* | `ShinyText(text: ...)` | Masked gradient sweeps across the glyphs; hold-and-sweep cycle. |
+| Shiny text *(React Bits)* | `ShinyText(text: ...)` | Masked gradient sweeps across the glyphs on a loop. |
 | Rolling numbers *(React Bits)* | `CountUp(value: ...)` | Implicitly animates from 0 (or the previous value) with no timers. |
 | Running border beam *(React Bits)* | `BorderBeam(child: ...)` | Rotating sweep-gradient stroke + blurred halo around any child. |
 | Aurora backdrop *(React Bits)* | `AuroraBackdrop(intensity: ...)` | Blurred colour field drifting behind the splash / empty states. |
-| Press feedback | `PressableScale(onTap: ..., child: ...)` | Springy scale-down on touch, used by cards, pills and CTAs. |
+| Press feedback | `PressableScale(onTap: ..., child: ...)` | Springy scale-down on touch, with cursor + semantics for desktop and screen readers. |
 
 To wire a new animated element: build it as a `StatefulWidget` with a single
 `AnimationController`, expose inputs as plain constructor params (`checked`,
@@ -129,57 +159,17 @@ To wire a new animated element: build it as a `StatefulWidget` with a single
 `RepaintBoundary` so off-screen rows don't repaint. That's the entire pattern
 used in this codebase.
 
-## Dark mode, glow and the logo
-
-- **Two hand-tuned palettes from one seed.** Light: cream canvas, charcoal ink,
-  cards with a hairline edge. Dark: deep forest-charcoal plates (never pure
-  black), a raised card tone, and a lighter sage primary.
-- **Glow halos.** `GlowIcon` / `GlowEmoji` / `GlowTile` (in `ui/glow.dart`) paint
-  a blurred copy behind the glyph plus a colored `BoxShadow`, so icons read like
-  small lamps in dark mode. Light mode keeps them nearly flat, and
-  **Settings → Glow effects** switches them off entirely.
-- **One logo, three surfaces.** `lib/ui/logo.dart` draws the mark — a leaf with a
-  terracotta check badge — as vector paths (app bar, splash, About).
-  `tool/generate_icons.py` renders the same geometry to the launcher PNGs with
-  plain `zlib` + `struct`, so the home-screen icon and the in-app logo can never
-  drift apart. Re-run it after editing the mark:
-  `python tool/generate_icons.py`.
-- **Internal id stays `pantry_pilot`.** The *display* name is Recipe Pilot
-  everywhere (launcher label, splash, About, store listing), but the Dart
-  package name — and therefore the Android `applicationId` — is unchanged, so
-  the app upgrades in place on your phone and keeps your saved recipes.
-
-## Offline-first design
-
-- **Storage:** Hive boxes (`recipes`, `grocery_list`, `settings`) hold plain
-  maps — no codegen, no TypeAdapters. `GroceryStore` is the *only* file that
-  touches Hive; swapping to MMKV or sqlite3 means rewriting one class.
-- **State:** one `AppController extends ChangeNotifier` exposes recipes, the
-  generated list, filters, and checked-state as data; screens subscribe via
-  `InheritedNotifier` (`context.app`). Persistence writes are fire-and-forget so
-  toggling a checkbox never awaits disk.
-- **Parsing:** 100% rule-based, deterministic, and synchronous — identical input
-  always yields identical sections, which keeps entrance animations stable
-  across restarts. The studio reuses the same parser for its live preview.
-- **Imagery:** the hero photograph is bundled at
-  `assets/images/hero_produce.jpg` (fetched at build time, loaded from disk — the
-  app never touches the network). Drop any produce photo there to rebrand;
-  1600 px wide or larger recommended. `assets/icon/` is build-time only and is
-  deliberately not bundled into the APK.
-- **Checked state survives process death:** every toggle persists immediately;
-  `bootstrap()` reloads it on next launch (checkboxes render already-settled, no
-  replay of the burst).
-
-## Performance notes
+## ⚡ Performance notes
 
 - One `AnimationController` per micro-interaction (no ticker stew); each
-  animated row is a `RepaintBoundary`, and the looping decorations (hero drift,
-  shiny text, border beam, aurora) are all shader/painter work inside their own
-  boundaries.
+  animated row is a `RepaintBoundary`, and the looping decorations (steam,
+  shiny text, border beam, aurora) are painter work inside their own boundaries.
 - The heaviest thing here is a `CustomPainter` drawing ~70 circles for 1.6 s of
   confetti.
-- No `setState` in build paths; state changes flow through `notifyListeners` and
-  `InheritedNotifier`.
 - Widget tests never call `pumpAndSettle` — the looping animations would not
   settle — so they pump explicit durations and flush stagger timers instead
   (see `test/helpers.dart`).
+
+## 📄 License
+
+[MIT](LICENSE) — cook, fork, ship.

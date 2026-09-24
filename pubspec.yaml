@@ -4,7 +4,7 @@
 name: pantry_pilot
 description: Recipe Pilot — offline-first recipe library and Recipe → Grocery List converter.
 publish_to: "none"
-version: 1.1.0+2
+version: 1.2.0+3
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
@@ -39,9 +39,5 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
-
-  # Bundled imagery — fetched at build time, served from the APK:
-  # the app stays 100% offline at runtime. (assets/icon/ is build-time only,
-  # so it is deliberately NOT bundled.)
-  assets:
-    - assets/images/
+  # No bundled image assets: the hero is a hand-painted CustomPainter scene
+  # and the launcher icons are build-time only, so the APK stays lean.

@@ -76,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
                   children: [
-                    _HeroPhotoCard(onExplore: () => _explorePantry(context)),
+                    _HeroCard(onExplore: () => _explorePantry(context)),
                     _StatsStrip(recipes: app.recipes),
                     _QuickActions(
                       onAdd: _openAddRecipe,
@@ -193,19 +193,22 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// Hero: bundled photo + dark scrim + greeting + shiny headline + CTA
+// Hero: a hand-painted cartoon kitchen scene — sun, hills, a steaming pot and
+// a row of smiling-shape vegetables — under a soft scrim, with the greeting,
+// shiny tagline and CTA on top. Pure CustomPainter: zero image assets, works
+// offline forever, and the palette swaps to a dusk variant in dark mode.
 // ---------------------------------------------------------------------------
 
-class _HeroPhotoCard extends StatefulWidget {
-  const _HeroPhotoCard({required this.onExplore});
+class _HeroCard extends StatefulWidget {
+  const _HeroCard({required this.onExplore});
 
   final VoidCallback onExplore;
 
   @override
-  State<_HeroPhotoCard> createState() => _HeroPhotoCardState();
+  State<_HeroCard> createState() => _HeroCardState();
 }
 
-class _HeroPhotoCardState extends State<_HeroPhotoCard>
+class _HeroCardState extends State<_HeroCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
@@ -215,7 +218,7 @@ class _HeroPhotoCardState extends State<_HeroPhotoCard>
   @override
   void initState() {
     super.initState();
-    _c.repeat(reverse: true);
+    _c.repeat();
   }
 
   @override
@@ -236,48 +239,38 @@ class _HeroPhotoCardState extends State<_HeroPhotoCard>
         child: AnimatedBuilder(
           animation: _c,
           builder: (context, child) {
-            final t = _c.value;
-            // Ken Burns: a slow, subtle zoom+drift so the still photo feels alive.
-            final scale = 1.0 + 0.06 * t;
-            final drift =
-                Offset(6 * math.sin(t * math.pi), 4 * math.cos(t * math.pi));
-
             return ClipRRect(
               borderRadius: BorderRadius.circular(24),
               child: SizedBox(
-                height: 208,
+                height: 212,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // --- Photo (bundled asset → works fully offline) ---
-                    // Drop any produce photo at assets/images/hero_produce.jpg
-                    // and it is picked up on the next build — no code change.
-                    Transform.translate(
-                      offset: drift,
-                      child: Transform.scale(
-                        scale: scale,
-                        child: Image.asset(
-                          'assets/images/hero_produce.jpg',
-                          fit: BoxFit.cover,
-                          // Until a photo is bundled, paint a soft procedural
-                          // "bokeh produce" backdrop instead of failing.
-                          errorBuilder: (_, __, ___) =>
-                              const CustomPaint(painter: _ProduceBackdrop()),
-                        ),
+                    // --- The cartoon scene itself (steam drifts, veggies bob) ---
+                    CustomPaint(
+                      painter: _CartoonKitchenPainter(
+                        t: _c.value,
+                        dark: dark,
                       ),
                     ),
-                    // --- Scrim: bottom-heavy dark gradient keeps text readable ---
-                    const DecoratedBox(
+                    // --- Scrim: bottom-heavy so the text always reads ---
+                    DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          stops: [0.0, 0.45, 1.0],
-                          colors: [
-                            Colors.black26,
-                            Colors.black38,
-                            Color(0xCC101510), // ~80% near-black green
-                          ],
+                          stops: const [0.0, 0.45, 1.0],
+                          colors: dark
+                              ? const [
+                                  Colors.black12,
+                                  Color(0x660A140E),
+                                  Color(0xE60A140E),
+                                ]
+                              : const [
+                                  Colors.black12,
+                                  Colors.black26,
+                                  Color(0xB3101510),
+                                ],
                         ),
                       ),
                     ),
@@ -292,7 +285,7 @@ class _HeroPhotoCardState extends State<_HeroPhotoCard>
                           Text(
                             appName.toUpperCase(),
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.9),
+                              color: Colors.white.withValues(alpha: 0.92),
                               fontSize: 10.5,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.6,
@@ -312,7 +305,7 @@ class _HeroPhotoCardState extends State<_HeroPhotoCard>
                           Text(
                             greeting,
                             style: theme.textTheme.labelMedium?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.85),
+                              color: Colors.white.withValues(alpha: 0.88),
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.3,
                             ),
@@ -342,23 +335,20 @@ class _HeroPhotoCardState extends State<_HeroPhotoCard>
                                     ]
                                   : null,
                             ),
-                            child: PressableScale(
-                              onTap: widget.onExplore,
-                              child: FilledButton.icon(
-                                onPressed: widget.onExplore,
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: AppTheme.terracotta,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 10),
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                                icon: const Icon(Icons.shopping_basket_rounded,
-                                    size: 18),
-                                label: const Text('Browse recipes',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w700)),
+                            child: FilledButton.icon(
+                              onPressed: widget.onExplore,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppTheme.terracotta,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 10),
+                                visualDensity: VisualDensity.compact,
                               ),
+                              icon: const Icon(Icons.shopping_basket_rounded,
+                                  size: 18),
+                              label: const Text('Browse recipes',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.w700)),
                             ),
                           ),
                         ],
@@ -375,35 +365,271 @@ class _HeroPhotoCardState extends State<_HeroPhotoCard>
   }
 }
 
-// ---------------------------------------------------------------------------
-// Procedural hero backdrop: a soft, blurred color-field sampled from fresh
-// produce. Used only if the bundled photo is ever missing.
-// ---------------------------------------------------------------------------
+/// The cartoon kitchen: everything is circles, capsules and arcs so the scene
+/// stays crisp at any card width. [t] (0..1, looping) drives the steam rise,
+/// the vegetable bob and the sparkle twinkle; [dark] swaps to a night palette.
+class _CartoonKitchenPainter extends CustomPainter {
+  const _CartoonKitchenPainter({required this.t, required this.dark});
 
-class _ProduceBackdrop extends CustomPainter {
-  const _ProduceBackdrop();
+  final double t;
+  final bool dark;
+
+  static const _tomato = Color(0xFFE53935);
+  static const _tomatoShade = Color(0xFFC62828);
+  static const _leaf = Color(0xFF2E7D32);
+  static const _leafLight = Color(0xFF66BB6A);
+  static const _broccoli = Color(0xFF43A047);
+  static const _carrot = Color(0xFFFB8C00);
+  static const _eggplant = Color(0xFF8E24AA);
+  static const _eggplantShade = Color(0xFF6A1B9A);
+  static const _cheese = Color(0xFFFDD835);
+  static const _pot = Color(0xFF37474F);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final blobs = <(Offset, double, Color)>[
-      (Offset(size.width * 0.12, size.height * 0.25), size.width * 0.42, const Color(0xFF7CB342)),
-      (Offset(size.width * 0.55, size.height * 0.85), size.width * 0.38, const Color(0xFF33691E)),
-      (Offset(size.width * 0.82, size.height * 0.2), size.width * 0.34, const Color(0xFFE53935)),
-      (Offset(size.width * 0.38, size.height * 0.45), size.width * 0.30, const Color(0xFFEF6C00)),
-      (Offset(size.width * 0.95, size.height * 0.65), size.width * 0.30, const Color(0xFFF9A825)),
-    ];
-    final base = Paint()..color = const Color(0xFF2E7D32);
-    canvas.drawRect(Offset.zero & size, base);
-    for (final (center, radius, color) in blobs) {
-      final paint = Paint()
-        ..color = color.withValues(alpha: 0.75)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 42);
-      canvas.drawCircle(center, radius, paint);
+    final w = size.width;
+    final h = size.height;
+    final bob = math.sin(t * 2 * math.pi) * h * 0.012; // gentle veggie bob
+
+    // ---- Sky ----
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: dark
+              ? const [Color(0xFF122A1F), Color(0xFF0C1A14)]
+              : const [Color(0xFFFFF3D6), Color(0xFFE3F2D9)],
+        ).createShader(Offset.zero & size),
+    );
+
+    // ---- Sun (day) / moon (night) with a soft halo ----
+    final orbC = Offset(w * 0.84, h * 0.20);
+    final orbR = h * 0.085;
+    canvas.drawCircle(
+      orbC,
+      orbR * 2.1,
+      Paint()
+        ..color = (dark ? const Color(0xFFCFD8DC) : const Color(0xFFFFD54F))
+            .withValues(alpha: dark ? 0.10 : 0.28),
+    );
+    canvas.drawCircle(
+      orbC,
+      orbR,
+      Paint()
+        ..shader = RadialGradient(colors: dark
+            ? const [Color(0xFFF5F5F5), Color(0xFFB0BEC5)]
+            : const [Color(0xFFFFE082), Color(0xFFFFB300)]),
+    );
+    if (dark) {
+      // Craters so the night orb reads as a moon.
+      final crater = Paint()..color = const Color(0xFF90A4AE).withValues(alpha: 0.5);
+      canvas.drawCircle(orbC - Offset(orbR * 0.3, orbR * 0.2), orbR * 0.18, crater);
+      canvas.drawCircle(orbC + Offset(orbR * 0.35, orbR * 0.25), orbR * 0.12, crater);
+    }
+
+    // ---- Sparkles (twinkle with the loop) ----
+    final sparkle = Paint()
+      ..color = Colors.white.withValues(alpha: 0.30 + 0.22 * math.sin(t * 2 * math.pi))
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    for (final (x, y, r) const [(0.14, 0.16, 5.0), (0.30, 0.30, 4.0), (0.62, 0.12, 4.5), (0.72, 0.32, 3.5)]) {
+      final c = Offset(x * w, y * h);
+      canvas.drawLine(c - Offset(r, 0), c + Offset(r, 0), sparkle);
+      canvas.drawLine(c - Offset(0, r), c + Offset(0, r), sparkle);
+    }
+
+    // ---- Hills ----
+    final backHill = Paint()
+      ..color = dark ? const Color(0xFF1E4028) : const Color(0xFFA8D5A2);
+    canvas.drawCircle(Offset(w * 0.22, h * 1.28), h * 0.62, backHill);
+    final frontHill = Paint()
+      ..color = dark ? const Color(0xFF2E5D38) : const Color(0xFF7FC47F);
+    canvas.drawCircle(Offset(w * 0.78, h * 1.42), h * 0.72, frontHill);
+
+    // ---- Cheese wedge on the back hill ----
+    _cheeseWedge(canvas, Offset(w * 0.09, h * 0.66), h * 0.085);
+
+    // ---- Steaming pot on the front hill (left) ----
+    _pot(canvas, Offset(w * 0.20, h * 0.80), w * 0.115, h * 0.155, bob);
+
+    // ---- Vegetable row (right), each bobbing on its own phase ----
+    _tomatoVeg(canvas, Offset(w * 0.46, h * 0.87 + bob), h * 0.075);
+    _broccoliVeg(canvas, Offset(w * 0.60, h * 0.86 - bob), h * 0.085);
+    _carrotVeg(canvas, Offset(w * 0.74, h * 0.88 + bob), h * 0.09);
+    _eggplantVeg(canvas, Offset(w * 0.885, h * 0.87 - bob), h * 0.10);
+  }
+
+  // ----- Scene pieces ------------------------------------------------------
+
+  void _cheeseWedge(Canvas canvas, Offset tip, double r) {
+    final path = Path()
+      ..moveTo(tip.dx, tip.dy - r * 0.7)
+      ..lineTo(tip.dx + r * 1.5, tip.dy + r * 0.5)
+      ..lineTo(tip.dx - r * 0.9, tip.dy + r * 0.5)
+      ..close();
+    canvas.drawPath(path, Paint()..color = _cheese);
+    final hole = Paint()..color = const Color(0xFFF9A825);
+    canvas.drawCircle(tip + Offset(r * 0.15, r * 0.1), r * 0.16, hole);
+    canvas.drawCircle(tip + Offset(-r * 0.25, r * 0.32), r * 0.10, hole);
+  }
+
+  void _pot(Canvas canvas, Offset center, double rw, double rh, double bob) {
+    // Body + lid + handles.
+    final body = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: center, width: rw * 2, height: rh),
+      Radius.circular(rh * 0.24),
+    );
+    canvas.drawRRect(body, Paint()..color = _pot);
+    canvas.drawCircle(
+      Offset(center.dx, center.dy - rh * 0.5),
+      rw * 0.98,
+      Paint()
+        ..color = const Color(0xFF455A64)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = rh * 0.22,
+    );
+    canvas.drawCircle(
+      Offset(center.dx, center.dy - rh * 0.62),
+      rh * 0.10,
+      Paint()..color = AppTheme.terracotta,
+    );
+    for (final dir in [-1.0, 1.0]) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: Offset(center.dx + dir * rw * 1.12, center.dy - rh * 0.1),
+            width: rw * 0.26,
+            height: rh * 0.16,
+          ),
+          Radius.circular(rh * 0.08),
+        ),
+        Paint()..color = _pot,
+      );
+    }
+
+    // Steam: two wavy columns rising and fading on offset loop phases.
+    for (final phase in [t, (t + 0.5) % 1.0]) {
+      final rise = phase * rh * 1.5;
+      final alpha = (0.42 * (1 - phase)).clamp(0.0, 1.0);
+      final steam = Paint()
+        ..color = Colors.white.withValues(alpha: alpha)
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = rh * 0.10;
+      for (final dx in [-rw * 0.35, rw * 0.35]) {
+        final sway = math.sin((phase + dx) * 2 * math.pi) * rw * 0.14;
+        final base = Offset(center.dx + dx, center.dy - rh * 0.75);
+        final path = Path()
+          ..moveTo(base.dx, base.dy)
+          ..quadraticBezierTo(
+            base.dx + sway, base.dy - rise * 0.5,
+            base.dx + sway * 0.4, base.dy - rise,
+          );
+        canvas.drawPath(path, steam);
+      }
     }
   }
 
+  void _tomatoVeg(Canvas canvas, Offset c, double r) {
+    canvas.drawCircle(c, r, Paint()..color = _tomato);
+    canvas.drawCircle(
+      c + Offset(-r * 0.28, -r * 0.30),
+      r * 0.26,
+      Paint()..color = Colors.white.withValues(alpha: 0.45),
+    );
+    final leaf = Paint()..color = _leaf;
+    for (final angle in [-0.6, -0.2, 0.2, 0.6]) {
+      final dir = Offset(math.sin(angle), -math.cos(angle));
+      canvas.drawCircle(c + dir * r * 0.92, r * 0.14, leaf);
+    }
+    canvas.drawCircle(c - Offset(0, r * 0.85), r * 0.16, leaf);
+  }
+
+  void _broccoliVeg(Canvas canvas, Offset c, double r) {
+    // Stem, then the floret cloud.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: c + Offset(0, r * 0.85),
+          width: r * 0.6,
+          height: r * 0.9,
+        ),
+        Radius.circular(r * 0.2),
+      ),
+      Paint()..color = const Color(0xFFA5D6A7),
+    );
+    final cloud = Paint()..color = _broccoli;
+    canvas.drawCircle(c - Offset(r * 0.55, r * 0.15), r * 0.52, cloud);
+    canvas.drawCircle(c + Offset(r * 0.55, r * 0.15), r * 0.52, cloud);
+    canvas.drawCircle(c - Offset(0, r * 0.55), r * 0.60, cloud);
+    canvas.drawCircle(c, r * 0.55, cloud);
+    // Floret texture dots.
+    final dot = Paint()..color = _leafLight.withValues(alpha: 0.8);
+    for (final (dx, dy) const [(-0.5, -0.5), (0.1, -0.8), (0.5, -0.3), (-0.1, -0.2)]) {
+      canvas.drawCircle(c + Offset(dx * r, dy * r), r * 0.11, dot);
+    }
+  }
+
+  void _carrotVeg(Canvas canvas, Offset c, double r) {
+    canvas.save();
+    canvas.translate(c.dx, c.dy);
+    canvas.rotate(0.5); // leaning into the scene
+    final body = Path()
+      ..moveTo(-r * 0.30, -r * 0.4)
+      ..quadraticBezierTo(0, -r * 0.62, r * 0.30, -r * 0.4)
+      ..lineTo(0, r)
+      ..close();
+    canvas.drawPath(body, Paint()..color = _carrot);
+    final ridge = Paint()
+      ..color = Colors.white.withValues(alpha: 0.25)
+      ..strokeWidth = r * 0.06;
+    for (final y in [-0.1, 0.2, 0.5]) {
+      canvas.drawLine(Offset(-r * 0.14, r * y), Offset(r * 0.14, r * y), ridge);
+    }
+    final frond = Paint()
+      ..color = _leaf
+      ..strokeWidth = r * 0.14
+      ..strokeCap = StrokeCap.round;
+    for (final dx in [-0.22, 0.0, 0.22]) {
+      canvas.drawLine(
+        Offset(dx * r * 0.6, -r * 0.5),
+        Offset(dx * r * 1.6, -r * 1.05),
+        frond,
+      );
+    }
+    canvas.restore();
+  }
+
+  void _eggplantVeg(Canvas canvas, Offset c, double r) {
+    canvas.save();
+    canvas.translate(c.dx, c.dy);
+    canvas.rotate(-0.35);
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(0, r * 0.25), width: r * 0.95, height: r * 1.7),
+      Paint()..color = _eggplant,
+    );
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(-r * 0.16, r * 0.05),
+        width: r * 0.22,
+        height: r * 0.85,
+      ),
+      Paint()..color = _eggplantShade.withValues(alpha: 0.55),
+    );
+    // Leafy cap.
+    final cap = Paint()..color = _leaf;
+    canvas.drawCircle(Offset(0, -r * 0.62), r * 0.26, cap);
+    for (final dx in [-0.5, 0.0, 0.5]) {
+      canvas.drawCircle(Offset(dx * r * 0.5, -r * 0.52), r * 0.16, cap);
+    }
+    canvas.restore();
+  }
+
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _CartoonKitchenPainter old) =>
+      old.t != t || old.dark != dark;
 }
 
 // ---------------------------------------------------------------------------

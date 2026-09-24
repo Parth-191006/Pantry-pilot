@@ -24,6 +24,9 @@ void main() {
 
     expect(find.text('Dark mode'), findsOneWidget);
     expect(find.text('Glow effects'), findsOneWidget);
+    // Celebrations was removed as a toggle — confetti is simply always on —
+    // so Dark mode and Glow effects are the only two switches here.
+    expect(find.text('Celebrations'), findsNothing);
     // Custom switch rows wrap a bare Material [Switch] (Semantics provides
     // the accessible label) — not the old SwitchListTile.
     await tester.tap(find.byType(Switch).first);
