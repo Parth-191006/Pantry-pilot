@@ -33,9 +33,24 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
   @override
   Widget build(BuildContext context) {
     final app = context.app;
-    final sections = app.list?.sections ?? const <GrocerySection>[];
     final scheme = Theme.of(context).colorScheme;
-    final empty = sections.isEmpty;
+
+    // Rows the parser refused to guess at are stored like any other item (so
+    // they persist), but they're hoisted into their own bucket instead of
+    // sitting in an aisle with an invented amount next to them.
+    final review = app.list?.reviewItems ?? const <GroceryItem>[];
+    final sections = <GrocerySection>[
+      for (final s in app.list?.sections ?? const <GrocerySection>[])
+        if (s.items.any((i) => !i.needsReview))
+          GrocerySection(
+            category: s.category,
+            items: [
+              for (final i in s.items)
+                if (!i.needsReview) i,
+            ],
+          ),
+    ];
+    final empty = sections.isEmpty && review.isEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -74,10 +89,13 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                 constraints: const BoxConstraints(maxWidth: 560),
                 child: ListView.builder(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-                  itemCount: sections.length + 1,
+                  itemCount: sections.length + 1 + (review.isEmpty ? 0 : 1),
                   itemBuilder: (context, i) {
                     if (i == 0) return const _MeterHeader();
-                    final section = sections[i - 1];
+                    if (review.isNotEmpty && i == 1) {
+                      return _ReviewCard(items: review);
+                    }
+                    final section = sections[i - (review.isEmpty ? 1 : 2)];
                     return StaggeredEntrance(
                       index: i,
                       baseDelay: const Duration(milliseconds: 120),
@@ -153,6 +171,92 @@ class _MeterHeader extends StatelessWidget {
             progress: app.progress,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Card for lines the parser could not read confidently.
+///
+/// The bargain the parser makes: it never invents a quantity, unit or name.
+/// Anything it cannot split honestly lands here with the recipe's own text, so
+/// the fix is an edit to the recipe rather than a silently wrong shopping row.
+class _ReviewCard extends StatelessWidget {
+  const _ReviewCard({required this.items});
+
+  final List<GroceryItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Card(
+        key: const ValueKey('needs_review'),
+        color: scheme.errorContainer.withValues(alpha: 0.4),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.help_outline_rounded,
+                      size: 18, color: scheme.onErrorContainer),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Needs review (${items.length})',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: scheme.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Too messy to split safely — shown exactly as written instead '
+                'of as a guessed amount. Edit the recipe to list them.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onErrorContainer.withValues(alpha: 0.85),
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 4),
+              for (final item in items)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Icon(
+                          Icons.edit_note_rounded,
+                          size: 16,
+                          color: scheme.onErrorContainer.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          item.name,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontStyle: FontStyle.italic,
+                            color: scheme.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

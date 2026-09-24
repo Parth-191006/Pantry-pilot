@@ -318,6 +318,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           ),
         ),
       ),
+      ), // closes SafeArea (bottomSheet) — Scaffold follows
     );
   }
 }

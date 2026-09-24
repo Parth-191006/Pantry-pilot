@@ -3,6 +3,12 @@ import 'package:flutter/material.dart';
 /// Core domain model: a grocery item belongs to an aisle category, has a
 /// quantity and unit parsed from the recipe text, and tracks checked state
 /// (persisted locally by the store).
+///
+/// [needsReview] marks a row the parser refused to guess at: it keeps the
+/// original recipe line as its [name] so the list never shows an amount the
+/// parser invented. Review rows are surfaced separately in the UI and are
+/// excluded from shopping progress. Persisted as an optional key, so lists
+/// written by older versions load with `false`.
 @immutable
 class GroceryItem {
   const GroceryItem({
@@ -12,14 +18,50 @@ class GroceryItem {
     required this.quantity,
     required this.unit,
     required this.checked,
+    this.needsReview = false,
   });
 
   final String id;
   final String name;
   final GroceryCategory category;
-  final String quantity; // "2", "1½", "" for unspecified
+  final String quantity; // "2", "1.5", "2–3", "" for unspecified
   final String unit; // "cups", "g", "" for countable items
   final bool checked;
+
+  /// True when the source line could not be understood confidently.
+  final bool needsReview;
+
+  /// Container units are stored singular ("1 can") and pluralised here for
+  /// anything above one ("2 cans"), so merging reads naturally.
+  static const Map<String, String> _containerPlurals = {
+    'can': 'cans',
+    'jar': 'jars',
+    'packet': 'packets',
+    'package': 'packages',
+    'pack': 'packs',
+    'box': 'boxes',
+    'bottle': 'bottles',
+    'carton': 'cartons',
+    'tub': 'tubs',
+    'bag': 'bags',
+    'bunch': 'bunches',
+    'sprig': 'sprigs',
+    'stalk': 'stalks',
+    'head': 'heads',
+    'stick': 'sticks',
+    'pinch': 'pinches',
+    'dash': 'dashes',
+    'handful': 'handfuls',
+    'slice': 'slices',
+    'piece': 'pieces',
+    'sheet': 'sheets',
+    'fillet': 'fillets',
+    'knob': 'knobs',
+    'rib': 'ribs',
+    'ear': 'ears',
+    'drop': 'drops',
+    'envelope': 'envelopes',
+  };
 
   /// Label shown in the leading pill, e.g. "2 cups" or "3".
   String get amountLabel {
@@ -28,10 +70,25 @@ class GroceryItem {
     if (q.isEmpty && u.isEmpty) return '1';
     if (q.isEmpty) return u;
     if (u.isEmpty) return q;
-    return '$q $u';
+    return '$q ${_displayUnit(u)}';
   }
 
-  GroceryItem copyWith({bool? checked, String? quantity, String? unit}) {
+  String _displayUnit(String u) {
+    final n = double.tryParse(quantity.trim());
+    final singular = n != null
+        ? n == 1
+        // Ranges ("2–3") have no single value: treat them as plural unless
+        // they start at 1 ("1–2 cans" still reads best as "cans").
+        : quantity.trim().split(RegExp(r'[^0-9.]')).first == '1';
+    return singular ? u : (_containerPlurals[u] ?? u);
+  }
+
+  GroceryItem copyWith({
+    bool? checked,
+    String? quantity,
+    String? unit,
+    bool? needsReview,
+  }) {
     return GroceryItem(
       id: id,
       name: name,
@@ -39,6 +96,7 @@ class GroceryItem {
       quantity: quantity ?? this.quantity,
       unit: unit ?? this.unit,
       checked: checked ?? this.checked,
+      needsReview: needsReview ?? this.needsReview,
     );
   }
 
@@ -49,6 +107,7 @@ class GroceryItem {
         'quantity': quantity,
         'unit': unit,
         'checked': checked,
+        'needsReview': needsReview,
       };
 
   factory GroceryItem.fromMap(Map<dynamic, dynamic> map) => GroceryItem(
@@ -58,6 +117,7 @@ class GroceryItem {
         quantity: (map['quantity'] ?? '') as String,
         unit: (map['unit'] ?? '') as String,
         checked: (map['checked'] ?? false) as bool,
+        needsReview: (map['needsReview'] ?? false) as bool,
       );
 }
 

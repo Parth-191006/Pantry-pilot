@@ -271,13 +271,20 @@ class AppController extends ChangeNotifier {
 
   bool get hasList => list != null && list!.totalItems > 0;
 
+  /// Rows the parser flagged for review — not shoppable, so they stay out of
+  /// the progress maths and show up in their own UI bucket instead.
+  int get reviewCount => list?.reviewCount ?? 0;
+
   int get checkedCount {
     final l = list;
     if (l == null) return 0;
-    return l.sections.fold(0, (s, sec) => s + sec.items.where((i) => i.checked).length);
+    return l.sections.fold(
+        0,
+        (s, sec) =>
+            s + sec.items.where((i) => i.checked && !i.needsReview).length);
   }
 
-  int get totalCount => list?.totalItems ?? 0;
+  int get totalCount => list?.actionableItems ?? 0;
   double get progress => totalCount == 0 ? 0 : checkedCount / totalCount;
 
   Set<String> _checkedIds = const {};
