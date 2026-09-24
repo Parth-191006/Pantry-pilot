@@ -523,7 +523,7 @@ class IngredientParser {
   /// green beans, white wine, brown sugar) are deliberately absent.
   static final RegExp _prepWords = RegExp(
     r'\b(?:'
-    r'finely|roughly|coarsely|thinly|thickly|lightly|slightly|'
+    r'finely|roughly|coarsely|thinly|thickly|lightly|slightly|ground|'
     r'diced|chopped|minced|sliced|grated|shredded|julienned|cubed|quartered|'
     r'halved|peeled|seeded|cored|trimmed|washed|rinsed|drained|patted|dry|'
     r'dried|crumbled|crushed|beaten|whisked|melted|softened|chilled|thawed|'
@@ -669,6 +669,8 @@ class IngredientParser {
       'brussels sprout', 'olives', 'artichoke', 'leek',
     ]),
     _CatRule(GroceryCategory.pantry, [
+      // Before the produce keyword 'peas', which substring-matches these.
+      'chickpea', 'garbanzo',
       'coconut milk', 'coconut cream', 'peanut butter', 'almond butter',
       'nut butter', 'olive oil', 'tomato paste', 'tomato sauce', 'tomato soup',
       'sun-dried tomato', 'chicken broth', 'chicken stock', 'beef broth',

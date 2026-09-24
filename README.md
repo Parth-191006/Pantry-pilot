@@ -42,7 +42,7 @@ Prefer to build it yourself? [Build from source](#-build-from-source) below.
 |---|---|
 | 📖 **Library** | 10 built-in recipes across Italian, Mexican, Asian and Mediterranean cuisines — plus unlimited recipes of your own. |
 | 🧠 **Offline parser** | Type or paste `2 cups spinach, chopped` and the rule-based parser extracts amount, unit and name, merges synonyms (*green onions → Scallions*), and files it under 🥬 **Produce**. |
-| 🛒 **Smart list** | One tap converts any recipe into categorized aisle sections — Produce, Dairy & Eggs, Pantry, Spices… — with a live progress meter. |
+| 🛒 **Smart list** | One tap converts any recipe into categorized aisle sections — Produce, Dairy & Eggs, Pantry, Spices… — with a live progress meter. Lines too messy to split safely ("2 cups flour and 1 cup sugar") land in a **Needs review** bucket, shown verbatim instead of guessed. |
 | ✅ **Tactile check-off** | Checkboxes pop with a confetti micro-burst, rows dim and strike through, and finishing the list triggers a full celebration. |
 | ➕ **Add-recipe studio** | Auto-suggested emoji, paste-a-block → split into rows, and a *live aisle preview* that runs the real parser as you type. |
 | ⏱ **Cook-along mode** | One step at a time in huge kitchen-readable text, with a per-step countdown ring (start / pause / resume), a stopwatch for untimed steps, and screen keep-awake so nothing sleeps mid-simmer. Add steps like “Simmer the sauce, 10 min” and the timer builds itself. |

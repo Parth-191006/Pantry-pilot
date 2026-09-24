@@ -214,5 +214,8 @@ void main() {
     expect(find.byKey(const ValueKey('cook_done')), findsOneWidget);
     expect(find.text("You're done!"), findsOneWidget);
     await flushTimers(tester);
+    // Unmount the tree so any ambient stopwatch ticker is cancelled before
+    // the test ends (fake_async fails on live periodic timers).
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 }

@@ -120,13 +120,18 @@ class _CookAlongScreenState extends State<CookAlongScreen> {
       return;
     }
     if (end != null) {
-      // Countdown just expired: freeze at zero, celebrate once.
+      // Countdown just expired: freeze at zero, celebrate once. The ambient
+      // stopwatch freezes too — otherwise _timerRunning stays true and the
+      // status would keep saying "Cooking…" instead of "Time's up".
       setState(() {
         _countdownEnd = null;
         _countdownRemaining = Duration.zero;
+        if (_stopwatchStart != null) {
+          _stopwatchElapsed += clock.now().difference(_stopwatchStart!);
+          _stopwatchStart = null;
+        }
       });
-      // The stopwatch may still be ticking — only kill the ticker if not.
-      if (_stopwatchStart == null) _stopTickerIfIdle();
+      _stopTickerIfIdle();
       HapticFeedback.heavyImpact();
       _showSnackBar('Time — move on to the next step 🔔');
       return;
