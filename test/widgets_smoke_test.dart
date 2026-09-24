@@ -173,6 +173,8 @@ void main() {
     // Let the expiry snackbar come and go BEFORE the next interaction: while
     // visible it floats over the nav buttons and can eat the Next-step tap.
     await tester.pump(const Duration(seconds: 5));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Step 1 of 8'), findsOneWidget); // pre-tap sanity
 
     // Next step (untimed) resets the header and shows the stopwatch chip.
     // Tap by key: during the 420ms AnimatedSwitcher hand-off the outgoing

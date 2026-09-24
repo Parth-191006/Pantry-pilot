@@ -153,6 +153,12 @@ jobs:
           # only the diagnostic lines and truncate each one hard.
           DETAIL=$(grep -E 'Expected:|Actual:|Which:|description was|smoke_test.dart line|still pending|Timer is|EXCEPTION CAUGHT' test_output.log | cut -c1-160 | head -25 | sed ':a;N;$!ba;s/\n/%0A/g')
           if [ -n "$DETAIL" ]; then echo "::error::FAILDETAIL::$DETAIL"; fi
+          # Which texts existed on screen when a finder failed (finder dumps
+          # are huge; this summarizes them into one annotation).
+          TEXTS=$(grep -oE 'Text\("[^"]{0,50}' test_output.log | sed 's/Text("//' | sort | uniq -c | sort -rn | head -20 | sed ':a;N;$!ba;s/\n/%0A/g')
+          if [ -n "$TEXTS" ]; then echo "::error::TEXTSONSCREEN::$TEXTS"; fi
+          WARN=$(grep -iE 'warnIfMissed|might not|hit test|WARNING' test_output.log | cut -c1-180 | head -6 | sed ':a;N;$!ba;s/\n/%0A/g')
+          if [ -n "$WARN" ]; then echo "::error::TAPWARN::$WARN"; fi
 
       # Full log for post-mortem (survives even when the annotation tail
       # truncates, and is downloadable from the run page).
