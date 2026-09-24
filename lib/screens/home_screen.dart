@@ -383,7 +383,7 @@ class _CartoonKitchenPainter extends CustomPainter {
   static const _eggplant = Color(0xFF8E24AA);
   static const _eggplantShade = Color(0xFF6A1B9A);
   static const _cheese = Color(0xFFFDD835);
-  static const _pot = Color(0xFF37474F);
+  static const _potColor = Color(0xFF37474F);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -419,8 +419,9 @@ class _CartoonKitchenPainter extends CustomPainter {
       orbR,
       Paint()
         ..shader = RadialGradient(colors: dark
-            ? const [Color(0xFFF5F5F5), Color(0xFFB0BEC5)]
-            : const [Color(0xFFFFE082), Color(0xFFFFB300)]),
+                ? const [Color(0xFFF5F5F5), Color(0xFFB0BEC5)]
+                : const [Color(0xFFFFE082), Color(0xFFFFB300)])
+            .createShader(Rect.fromCircle(center: orbC, radius: orbR)),
     );
     if (dark) {
       // Craters so the night orb reads as a moon.
@@ -434,7 +435,7 @@ class _CartoonKitchenPainter extends CustomPainter {
       ..color = Colors.white.withValues(alpha: 0.30 + 0.22 * math.sin(t * 2 * math.pi))
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
-    for (final (x, y, r) const [(0.14, 0.16, 5.0), (0.30, 0.30, 4.0), (0.62, 0.12, 4.5), (0.72, 0.32, 3.5)]) {
+    for (final (x, y, r) in const [(0.14, 0.16, 5.0), (0.30, 0.30, 4.0), (0.62, 0.12, 4.5), (0.72, 0.32, 3.5)]) {
       final c = Offset(x * w, y * h);
       canvas.drawLine(c - Offset(r, 0), c + Offset(r, 0), sparkle);
       canvas.drawLine(c - Offset(0, r), c + Offset(0, r), sparkle);
@@ -481,7 +482,7 @@ class _CartoonKitchenPainter extends CustomPainter {
       Rect.fromCenter(center: center, width: rw * 2, height: rh),
       Radius.circular(rh * 0.24),
     );
-    canvas.drawRRect(body, Paint()..color = _pot);
+    canvas.drawRRect(body, Paint()..color = _potColor);
     canvas.drawCircle(
       Offset(center.dx, center.dy - rh * 0.5),
       rw * 0.98,
@@ -505,7 +506,7 @@ class _CartoonKitchenPainter extends CustomPainter {
           ),
           Radius.circular(rh * 0.08),
         ),
-        Paint()..color = _pot,
+        Paint()..color = _potColor,
       );
     }
 
@@ -567,7 +568,7 @@ class _CartoonKitchenPainter extends CustomPainter {
     canvas.drawCircle(c, r * 0.55, cloud);
     // Floret texture dots.
     final dot = Paint()..color = _leafLight.withValues(alpha: 0.8);
-    for (final (dx, dy) const [(-0.5, -0.5), (0.1, -0.8), (0.5, -0.3), (-0.1, -0.2)]) {
+    for (final (dx, dy) in const [(-0.5, -0.5), (0.1, -0.8), (0.5, -0.3), (-0.1, -0.2)]) {
       canvas.drawCircle(c + Offset(dx * r, dy * r), r * 0.11, dot);
     }
   }

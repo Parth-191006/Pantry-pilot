@@ -199,7 +199,7 @@ class RecipePilotMarkPainter extends CustomPainter {
             ..shader = const RadialGradient(colors: [
               Color(0xFFFFB27A),
               Color(0xFFE2571E),
-            ]),
+            ]).createShader(Rect.fromCircle(center: dishCenter, radius: dishR)),
         );
         // A second, smaller serving line under the dish.
         final line = Paint()
