@@ -46,10 +46,10 @@ GROOVY_BODY = """\
 
 KOTLIN_BODY = """\
             create("release") {
-                val keystoreProperties = java.util.Properties()
+                val keystoreProperties = Properties()
                 val keystorePropertiesFile = rootProject.file("key.properties")
                 if (keystorePropertiesFile.exists()) {
-                    keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+                    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
                     keyAlias = keystoreProperties["keyAlias"] as String
                     keyPassword = keystoreProperties["keyPassword"] as String
                     storeFile = file(keystoreProperties["storeFile"] as String)
@@ -78,6 +78,15 @@ KOTLIN_BLOCK = f"""\
 def patch(path: str, is_kotlin: bool) -> int:
     with open(path, "r", encoding="utf-8") as fh:
         src = fh.read()
+
+    if is_kotlin:
+        # Gradle .kts scripts do NOT auto-import java.util/java.io (Groovy
+        # does), so the Java classes the signing block uses need explicit
+        # imports at the very top of the build script.
+        needed = ["import java.util.Properties", "import java.io.FileInputStream"]
+        missing = [i for i in needed if i not in src]
+        if missing:
+            src = "\n".join(needed) + "\n\n" + src
 
     already = (
         "signingConfig signingConfigs.release" in src
