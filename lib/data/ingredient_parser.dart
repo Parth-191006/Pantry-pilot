@@ -224,7 +224,7 @@ class IngredientParser {
     // 3e. Unit (whole-word table lookup — never a substring guess).
     final takenUnit = _takeUnit(line);
     if (takenUnit != null) {
-      unit = takenUnit.unit;
+      unit = takenUnit.value;
       line = takenUnit.rest.trim();
     }
     // "14 oz package extra-firm tofu": after a real measure, a container word
@@ -241,7 +241,7 @@ class IngredientParser {
       if (inner != null) {
         quantity = inner.label;
         final innerUnit = _takeUnit(inner.rest);
-        if (innerUnit != null) unit = innerUnit.unit;
+        if (innerUnit != null) unit = innerUnit.value;
       }
     }
 
