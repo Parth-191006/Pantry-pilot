@@ -147,7 +147,15 @@ jobs:
           echo "::error::TESTLOG::$TAIL"
 
       - name: Build release APK
-        run: flutter build apk --release
+        run: |
+          flutter build apk --release 2>&1 | tee build_output.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Dump build failures to annotations
+        if: failure()
+        run: |
+          TAIL=$(tail -80 build_output.log 2>/dev/null | sed ':a;N;$!ba;s/\n/%0A/g')
+          if [ -n "$TAIL" ]; then echo "::error::BUILDLOG::$TAIL"; fi
 
       - name: Stage APK with versioned name
         id: apk
