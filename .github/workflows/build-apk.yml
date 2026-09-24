@@ -148,6 +148,11 @@ jobs:
           echo "::error::TESTLOG::$TAIL"
           NAMES=$(grep -E '\[E\]' test_output.log | sed ':a;N;$!ba;s/\n/%0A/g')
           if [ -n "$NAMES" ]; then echo "::error::FAILEDTESTS::$NAMES"; fi
+          # Compact failure detail. Full exception blocks exceed GitHub's 4 KB
+          # annotation cap (widget-dump lines are thousands of chars), so keep
+          # only the diagnostic lines and truncate each one hard.
+          DETAIL=$(grep -E 'Expected:|Actual:|Which:|description was|smoke_test.dart line|still pending|Timer is|EXCEPTION CAUGHT' test_output.log | cut -c1-160 | head -25 | sed ':a;N;$!ba;s/\n/%0A/g')
+          if [ -n "$DETAIL" ]; then echo "::error::FAILDETAIL::$DETAIL"; fi
 
       # Full log for post-mortem (survives even when the annotation tail
       # truncates, and is downloadable from the run page).

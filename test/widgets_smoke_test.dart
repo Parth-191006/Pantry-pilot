@@ -170,6 +170,10 @@ void main() {
     expect(find.text("Time's up 🔔"), findsOneWidget);
     expect(find.text('Restart'), findsOneWidget);
 
+    // Let the expiry snackbar come and go BEFORE the next interaction: while
+    // visible it floats over the nav buttons and can eat the Next-step tap.
+    await tester.pump(const Duration(seconds: 5));
+
     // Next step (untimed) resets the header and shows the stopwatch chip.
     // Tap by key: during the 420ms AnimatedSwitcher hand-off the outgoing
     // step view still holds a "Next step" label, which would make a text
@@ -195,9 +199,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Step 1 of 8'), findsOneWidget);
     expect(find.text('05:00'), findsOneWidget); // fresh, idle again
-    // The expiry SnackBar hides itself after 4 s — pump past it so the test
-    // ends with no pending timers (fake_async forbids them).
-    await tester.pump(const Duration(seconds: 5));
     await flushTimers(tester);
     // Unmount the whole tree: the step's 1 Hz ticker is periodic and never
     // "drains", so dispose must cancel it before the test ends.
