@@ -170,10 +170,16 @@ void main() {
     expect(find.text("Time's up 🔔"), findsOneWidget);
     expect(find.text('Restart'), findsOneWidget);
 
-    // Let the expiry snackbar come and go BEFORE the next interaction: while
-    // visible it floats over the nav buttons and can eat the Next-step tap.
-    await tester.pump(const Duration(seconds: 5));
+    // The expiry snackbar physically overlays the nav buttons at the bottom
+    // edge (CI proved the Next-step tap hit the snackbar's shape, not the
+    // button), so dismiss it deterministically instead of relying on its
+    // hide-timer and exit animation.
+    tester
+        .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger))
+        .hideCurrentSnackBar();
+    await tester.pump(const Duration(milliseconds: 400)); // exit animation
     await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(SnackBar), findsNothing);
     expect(find.text('Step 1 of 8'), findsOneWidget); // pre-tap sanity
 
     // Next step (untimed) resets the header and shows the stopwatch chip.
