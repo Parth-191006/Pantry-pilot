@@ -187,6 +187,9 @@ void main() {
     // ends with no pending timers (fake_async forbids them).
     await tester.pump(const Duration(seconds: 5));
     await flushTimers(tester);
+    // Unmount the whole tree: the step's 1 Hz ticker is periodic and never
+    // "drains", so dispose must cancel it before the test ends.
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('cook-along: finishing the last step celebrates', (tester) async {
