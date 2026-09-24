@@ -67,9 +67,15 @@ class GroceryStore {
           break;
         }
       }
+      // Two refresh triggers, both safe because the UI offers no editing of
+      // built-ins:
+      //  • pre-metadata era entries (no 'minutes'/'tags' at all), and
+      //  • entries stored before cook-along steps existed (no 'steps' key —
+      //    v1.2 installs), so v1.3+ upgrades gain the timed steps.
       if (match == null) {
         await _put(_recipesBox, r.id, r.toMap());
-      } else if (!match.containsKey('minutes') && !match.containsKey('tags')) {
+      } else if ((!match.containsKey('minutes') && !match.containsKey('tags')) ||
+          !match.containsKey('steps')) {
         await _put(_recipesBox, r.id, r.toMap());
       }
     }

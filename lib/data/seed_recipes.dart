@@ -4,10 +4,14 @@ import 'models.dart';
 /// seed carries 'Dinner' unless it's genuinely a breakfast/one-pan dish, so
 /// the shelf never feels empty when filtering.
 ///
-/// MERGE SEMANTICS: seeds are re-inserted with `putIfAbsent` on every launch
-/// (see GroceryStore.loadRecipes) — new seed recipes appear for existing
-/// installs without ever overwriting user edits to built-ins, and
-/// user-pasted recipes are always preserved untouched.
+/// Every seed also ships **cook-along steps** — hand-written instructions with
+/// per-step countdowns (seconds). Steps with no `seconds` show a stopwatch
+/// instead of a timer in the cook-along screen.
+///
+/// MERGE SEMANTICS: seeds are refreshed in place on every launch when the
+/// stored copy predates the current schema (see GroceryStore.loadRecipes) —
+/// new fields appear for existing installs without ever overwriting
+/// user-created recipes.
 const List<Recipe> seedRecipes = [
   Recipe(
     id: 'r_garlic_pasta',
@@ -24,6 +28,16 @@ const List<Recipe> seedRecipes = [
       'Salt to taste',
       'Black pepper, freshly ground',
       '2 tbsp parsley, chopped',
+    ],
+    steps: [
+      RecipeStep(text: 'Bring a large pot of salted water to a boil.', seconds: 300),
+      RecipeStep(text: 'Cook the pasta until just shy of al dente — it finishes in the sauce.', seconds: 480),
+      RecipeStep(text: 'Meanwhile, melt the butter with the olive oil in a wide pan over low heat.'),
+      RecipeStep(text: 'Add the minced garlic and let it soften gently — never let it brown.', seconds: 120),
+      RecipeStep(text: 'Reserve a mug of pasta water, then drain the pasta.'),
+      RecipeStep(text: 'Toss the pasta into the garlic butter with a splash of pasta water.', seconds: 90),
+      RecipeStep(text: 'Off the heat, add the parmesan and toss until silky.'),
+      RecipeStep(text: 'Season with salt and pepper, shower with parsley, and serve.'),
     ],
   ),
   Recipe(
@@ -44,6 +58,15 @@ const List<Recipe> seedRecipes = [
       '1 lime',
       '1/2 cup salsa',
     ],
+    steps: [
+      RecipeStep(text: 'Start the rice so it cooks while you build everything else.', seconds: 900),
+      RecipeStep(text: 'Slice the chicken into strips; toss with cumin, paprika and chili powder.'),
+      RecipeStep(text: 'Sear the chicken in half the oil over high heat until golden.', seconds: 360),
+      RecipeStep(text: 'Move the chicken to a plate — keep those juices in the pan.'),
+      RecipeStep(text: 'Cook the peppers and onion in the same pan until charred at the edges.', seconds: 420),
+      RecipeStep(text: 'Return the chicken, squeeze over half the lime, and toss.', seconds: 60),
+      RecipeStep(text: 'Build the bowls: rice, fajita mix, salsa, and the rest of the lime.'),
+    ],
   ),
   Recipe(
     id: 'r_shakshuka',
@@ -63,6 +86,15 @@ const List<Recipe> seedRecipes = [
       '1/4 cup parsley, chopped',
       '2 tbsp olive oil',
       'Salt to taste',
+    ],
+    steps: [
+      RecipeStep(text: 'Soften the onion and bell pepper in the oil over medium heat.', seconds: 420),
+      RecipeStep(text: 'Add the garlic, paprika and cumin and bloom the spices.', seconds: 60),
+      RecipeStep(text: 'Pour in the tomatoes, season, and simmer until slightly thickened.', seconds: 600),
+      RecipeStep(text: 'Make four wells and crack an egg into each.'),
+      RecipeStep(text: 'Cover and cook until the whites are set but yolks still run.', seconds: 360),
+      RecipeStep(text: 'Crumble the feta over the top and rest for a minute.', seconds: 60),
+      RecipeStep(text: 'Finish with parsley and serve straight from the pan.'),
     ],
   ),
   Recipe(
@@ -85,6 +117,15 @@ const List<Recipe> seedRecipes = [
       '1 lime',
       '2 tbsp vegetable oil',
     ],
+    steps: [
+      RecipeStep(text: 'Soak the rice noodles in hot water until pliable, then drain.', seconds: 480),
+      RecipeStep(text: 'Stir the tamarind, soy sauce and brown sugar into a quick sauce.'),
+      RecipeStep(text: 'Sear the chicken with the garlic over high heat until cooked through.', seconds: 300),
+      RecipeStep(text: 'Push everything aside, scramble the eggs in the empty half.', seconds: 60),
+      RecipeStep(text: 'Add the noodles and sauce; toss hard for two minutes.', seconds: 120),
+      RecipeStep(text: 'Fold in the bean sprouts and green onions — just to wilt.', seconds: 45),
+      RecipeStep(text: 'Top with crushed peanuts and a lime wedge each.'),
+    ],
   ),
   Recipe(
     id: 'r_chickpea_curry',
@@ -106,6 +147,15 @@ const List<Recipe> seedRecipes = [
       'Salt to taste',
       '1 cup rice',
     ],
+    steps: [
+      RecipeStep(text: 'Start the rice; it will be ready exactly when the curry is.', seconds: 900),
+      RecipeStep(text: 'Soften the onion in the oil over medium heat.', seconds: 300),
+      RecipeStep(text: 'Add the garlic and ginger and cook until fragrant.', seconds: 60),
+      RecipeStep(text: 'Bloom the curry powder and cumin in the pan.', seconds: 45),
+      RecipeStep(text: 'Add the tomatoes, coconut milk and chickpeas; simmer to thicken.', seconds: 600),
+      RecipeStep(text: 'Stir in the spinach until just wilted, then season.', seconds: 90),
+      RecipeStep(text: 'Serve over the rice.'),
+    ],
   ),
   Recipe(
     id: 'r_greek_salad',
@@ -123,6 +173,14 @@ const List<Recipe> seedRecipes = [
       '1 tbsp red wine vinegar',
       '1 tsp dried oregano',
       'Salt to taste',
+    ],
+    steps: [
+      RecipeStep(text: 'Chop the cucumbers and tomatoes into hearty bite-size pieces.'),
+      RecipeStep(text: 'Soak the sliced red onion in cold water to take the bite off.', seconds: 300),
+      RecipeStep(text: 'Whisk the olive oil, vinegar and oregano into a quick dressing.'),
+      RecipeStep(text: 'Toss the vegetables and olives with the dressing.'),
+      RecipeStep(text: 'Fold in the feta gently — you want cubes, not crumbs.'),
+      RecipeStep(text: 'Rest so the flavors mingle, then serve.', seconds: 120),
     ],
   ),
   Recipe(
@@ -142,6 +200,13 @@ const List<Recipe> seedRecipes = [
       '1 lime',
       '1/2 cup salsa',
     ],
+    steps: [
+      RecipeStep(text: 'Warm the taco shells in the oven so they crackle later.', seconds: 300),
+      RecipeStep(text: 'Brown the ground beef over medium-high heat, breaking it up.', seconds: 360),
+      RecipeStep(text: 'Stir in the taco seasoning and a splash of water; simmer.', seconds: 240),
+      RecipeStep(text: 'Meanwhile prep the toppings: lettuce, tomatoes, cheese, lime wedges.'),
+      RecipeStep(text: 'Build the tacos: beef first, then everything cold and crunchy.'),
+    ],
   ),
   Recipe(
     id: 'r_lemon_salmon',
@@ -160,6 +225,13 @@ const List<Recipe> seedRecipes = [
       'Black pepper, freshly ground',
       '1 cup asparagus',
     ],
+    steps: [
+      RecipeStep(text: 'Preheat the oven to 400°F (200°C) and line a sheet pan.', seconds: 480),
+      RecipeStep(text: 'Rub the salmon with oil, garlic, dill, oregano, salt and pepper.'),
+      RecipeStep(text: 'Top with lemon slices and roast alongside the asparagus.', seconds: 720),
+      RecipeStep(text: 'Rest the salmon for a few minutes so it stays juicy.', seconds: 180),
+      RecipeStep(text: 'Squeeze over the remaining lemon and serve.'),
+    ],
   ),
   Recipe(
     id: 'r_margherita_pizza',
@@ -175,6 +247,14 @@ const List<Recipe> seedRecipes = [
       '1/4 cup fresh basil',
       '2 tbsp olive oil',
       'Salt to taste',
+    ],
+    steps: [
+      RecipeStep(text: 'Preheat the oven as hot as it goes with a rack in the top third.', seconds: 600),
+      RecipeStep(text: 'Spread the sauce thinly — you should see patches of bread.'),
+      RecipeStep(text: 'Tear the mozzarella over the top and add the tomato slices.'),
+      RecipeStep(text: 'Bake until the cheese bubbles and spots turn golden.', seconds: 480),
+      RecipeStep(text: 'Crown with basil, a drizzle of olive oil, and a pinch of salt.'),
+      RecipeStep(text: 'Slice and rest for a minute so the cheese sets.', seconds: 120),
     ],
   ),
   Recipe(
@@ -196,6 +276,15 @@ const List<Recipe> seedRecipes = [
       '2 tbsp vegetable oil',
       '1 cup rice',
       '1 tsp sesame seeds',
+    ],
+    steps: [
+      RecipeStep(text: 'Start the rice.', seconds: 900),
+      RecipeStep(text: 'Press the tofu dry and cube it; toss with cornstarch.'),
+      RecipeStep(text: 'Pan-fry the tofu until crisp on all sides, then set aside.', seconds: 480),
+      RecipeStep(text: 'Stir-fry the broccoli, pepper and carrots, hard and fast.', seconds: 300),
+      RecipeStep(text: 'Whisk the soy sauce, honey, ginger and garlic; pour into the pan.', seconds: 60),
+      RecipeStep(text: 'Return the tofu and toss until the glaze coats everything.', seconds: 90),
+      RecipeStep(text: 'Serve over rice and finish with sesame seeds.'),
     ],
   ),
 ];

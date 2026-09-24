@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Renders the Recipe Pilot launcher icons.
 
-The mark (open recipe book + terracotta fork badge) is defined *geometrically*
-here with signed-distance functions that mirror lib/ui/logo.dart one-for-one,
-so the launcher artwork and the in-app vector logo stay the same drawing.
+The mark (a single minimalist leaf) is defined *geometrically* here with
+signed-distance functions that mirror lib/ui/logo.dart one-for-one, so the
+launcher artwork and the in-app vector logo stay the same drawing.
 
 Outputs (checked in, consumed by `dart run flutter_launcher_icons`):
   assets/icon/app_icon.png             512x512  full logo (rounded-square plate)
@@ -23,49 +23,27 @@ import zlib
 S = 512  # rendered square size in pixels
 
 # ---------------------------------------------------------------------------
-# Geometry — all units are fractions of the canvas side (same as logo.dart)
+# Geometry — all units are fractions of the canvas side (same as logo.dart).
+# The leaf axis runs diagonally (tip up-right, base down-left); the body is
+# two quadratic arcs through tip and base, approximated here as an ellipse
+# with the same length/width — visually identical at icon sizes.
 # ---------------------------------------------------------------------------
-BOOK_CENTER = (0.455, 0.485)
-PAGE_W = 0.23           # full width of one page
-PAGE_H = 0.215          # full height of both pages
-PAGE_TILT = math.radians(6)
-PAGE_GAP = 0.014        # spine-to-page breathing room, per side
-PAGE_RADIUS = 0.035
+LEAF_CENTER = (0.5, 0.46)
+LEAF_LENGTH = 0.62
+LEAF_HALF_WIDTH = 0.16
+STEM_LENGTH = 0.09
+STEM_RADIUS = 0.016
+VEIN_BOW = 0.06      # perpendicular bow of the vein at the leaf's midpoint
+VEIN_RADIUS = 0.013  # vein half-thickness
 
-ING_LINE_WIDTHS = (0.115, 0.085, 0.100)
-ING_LINE_YS = (0.28, 0.49, 0.70)   # fractions of page height from page top
-ING_LINE_R = 0.012
-
-DISH_DX = 0.10 * PAGE_W  # dish centre offset from the right page's centre
-DISH_DY = -0.26 * PAGE_H  # upper half — the fork badge must never cover it
-DISH_R = 0.19 * PAGE_H
-DISH_LINE_R = 0.010
-
-SPINE_HALF_W = 0.015
-SPINE_HALF_H = 0.52 * PAGE_H
-
-BADGE_CENTER = (0.735, 0.735)
-BADGE_RADIUS = 0.195
-FORK_R = 0.013           # stroke half-thickness
-TINE_DX = 0.34           # tine x offsets, fractions of badge radius
-TINE_TOP = -0.52
-TINE_BOTTOM = -0.08
-CROSSBAR_Y = -0.18
-HANDLE_END = 0.58
-
-COS_T, SIN_T = math.cos(PAGE_TILT), math.sin(PAGE_TILT)
+AXIS = (math.cos(math.radians(55)), -math.sin(math.radians(55)))  # base -> tip
+PERP = (-AXIS[1], AXIS[0])                                        # left of axis
 
 PLATE_RADIUS = 0.28
 PLATE_STOPS = ((0.0, (0x43, 0xA0, 0x47)), (0.55, (0x1B, 0x5E, 0x20)),
                (1.0, (0x10, 0x33, 0x1A)))
-PAGE_FILL = ((0xFD, 0xFB, 0xF3), (0xED, 0xE4, 0xCF))
-FOLD_COLOR = (0x8A, 0x7A, 0x55)
-ING_COLOR = (0x4E, 0x9B, 0x5A)
-SPINE_COLOR = (0x10, 0x33, 0x1A)
-SHADOW_COLOR = (0x06, 0x30, 0x1A)
-RING_COLOR = (0x06, 0x25, 0x1A)
-BADGE_FILL = ((0xFF, 0xA5, 0x6B), (0xE2, 0x57, 0x1E))
-DISH_FILL = ((0xFF, 0xB2, 0x7A), (0xE2, 0x57, 0x1E))
+LEAF_FILL = ((0xFD, 0xFB, 0xF3), (0xE3, 0xED, 0xD6))  # top-right -> bottom-left
+VEIN_COLOR = (0x1B, 0x5E, 0x20)
 
 
 # ---------------------------------------------------------------------------
@@ -76,10 +54,6 @@ def sd_rounded_rect(x, y, hw, hh, radius):
     dy = abs(y) - hh + radius
     ox, oy = max(dx, 0.0), max(dy, 0.0)
     return math.hypot(ox, oy) + min(max(dx, dy), 0.0) - radius
-
-
-def sd_circle(x, y, cx, cy, radius):
-    return math.hypot(x - cx, y - cy) - radius
 
 
 def sd_capsule(x, y, ax, ay, bx, by, radius):
@@ -121,12 +95,12 @@ def over(dst, src_rgb, src_a):
     return (r, g, b, out_a)
 
 
-def page_frame(fx, fy, direction):
-    """Point in book-local coordinates for the page tilted by `direction`."""
-    dx, dy = fx - BOOK_CENTER[0], fy - BOOK_CENTER[1]
-    lx = dx * COS_T + direction * dy * SIN_T
-    ly = -direction * dx * SIN_T + dy * COS_T
-    return lx, ly
+def leaf_frame(fx, fy):
+    """Point in leaf-local coordinates: (along-axis a, across-axis b)."""
+    dx, dy = fx - LEAF_CENTER[0], fy - LEAF_CENTER[1]
+    a = dx * AXIS[0] + dy * AXIS[1]
+    b = dx * PERP[0] + dy * PERP[1]
+    return a, b
 
 
 def shade(fx, fy, scale, include_bg):
@@ -148,114 +122,47 @@ def shade(fx, fy, scale, include_bg):
             base = lerp_color(base, (255, 255, 255), 0.14 * sheen)
             px = over(px, tuple(c / 255 for c in base), a)
 
-    # --- Book drop shadow ---------------------------------------------------
-    d_shadow = sd_rounded_rect(
-        fx - BOOK_CENTER[0], fy - BOOK_CENTER[1] - 0.028,
-        PAGE_W + 0.006, PAGE_H / 2 + 0.006, PAGE_RADIUS,
-    )
-    shadow_a = 0.35 * max(0.0, min(1.0, 1.0 - d_shadow / (8 * aa))) ** 1.4
-    if shadow_a > 0:
-        px = over(px, tuple(c / 255 for c in SHADOW_COLOR), shadow_a)
+    # --- Leaf -----------------------------------------------------------------
+    # Body: ellipse with the same length and half-width as the two-arc body
+    # painted by logo.dart (indistinguishable at icon resolutions).
+    a, b = leaf_frame(fx, fy)
+    L = LEAF_LENGTH / 2
+    W = LEAF_HALF_WIDTH
+    qx, qy = a / L, b / W
+    d_body = (math.hypot(qx, qy) - 1.0) * W
+    body_a = cov(d_body)
 
-    # --- Pages (fill + fold shading + contents, clipped to the page) --------
-    for direction in (-1.0, 1.0):
-        lx, ly = page_frame(fx, fy, direction)
-        cx = direction * (PAGE_W / 2 + PAGE_GAP)
-        d_page = sd_rounded_rect(lx - cx, ly, PAGE_W / 2, PAGE_H / 2, PAGE_RADIUS)
-        page_a = cov(d_page)
-        if page_a <= 0:
-            continue
+    # Gradient axis in logo.dart runs top-right (white) -> bottom-left (sage).
+    # Projection of the pixel onto that axis: t = (1 - x + y) / 2.
+    t = (1.0 - fx + fy) / 2
 
-        fill = lerp_color(PAGE_FILL[0], PAGE_FILL[1], (lx + ly + 0.5) / 1.1)
-        # Inner-edge darkening near the spine sells the fold.
-        u = lx / PAGE_W  # -0.5 .. 0.5 across the page
-        spine_prox = max(0.0, min(1.0, (direction * -u - 0.1) / 0.4))
-        fill = lerp_color(fill, FOLD_COLOR, 0.22 * spine_prox)
-        px = over(px, tuple(c / 255 for c in fill), page_a)
+    # Stem: capsule from the base, extending along -axis. It shares the fill
+    # gradient, so it reads as part of the silhouette.
+    base_x = LEAF_CENTER[0] - AXIS[0] * L
+    base_y = LEAF_CENTER[1] - AXIS[1] * L
+    stem_x = base_x - AXIS[0] * STEM_LENGTH
+    stem_y = base_y - AXIS[1] * STEM_LENGTH
+    d_stem = sd_capsule(fx, fy, base_x, base_y, stem_x, stem_y, STEM_RADIUS)
+    stem_a = cov(d_stem)
 
-        content_a = 0.0
-        content_rgb = (0.0, 0.0, 0.0)
+    silhouette_a = max(body_a, stem_a)
+    if silhouette_a > 0:
+        fill = lerp_color(LEAF_FILL[0], LEAF_FILL[1], t)
+        px = over(px, tuple(c / 255 for c in fill), silhouette_a)
 
-        if direction < 0:
-            # Left page: the ingredient list — three rounded lines.
-            left = cx - PAGE_W / 2 + 0.20 * PAGE_W
-            for width, yf in zip(ING_LINE_WIDTHS, ING_LINE_YS):
-                y = (yf - 0.5) * PAGE_H
-                d_line = sd_capsule(lx, ly, left, y, left + width, y, ING_LINE_R)
-                content_a = max(content_a, cov(d_line) * 0.55)
-            content_rgb = ING_COLOR
+    # --- Vein: shallow parabola from base to tip, bowed toward +perp ----------
+    if body_a > 0:
+        tt = max(-1.0, min(1.0, a / L))          # position along the axis
+        vein_b = VEIN_BOW * (1.0 - tt * tt)      # bowed curve height
+        if abs(a) <= L:
+            d_vein = abs(b - vein_b) - VEIN_RADIUS
         else:
-            # Right page: a plated dish — terracotta on a white plate.
-            dish_cx = cx + DISH_DX
-            dish_cy = DISH_DY
-            d_plate = sd_circle(lx, ly, dish_cx, dish_cy, DISH_R)
-            plate_a = cov(d_plate)
-            if plate_a > 0:
-                px = over(px, (0xFD / 255, 0xFB / 255, 0xF3 / 255),
-                          plate_a * page_a)
-                inner = math.hypot(lx - dish_cx, ly - dish_cy) / (DISH_R * 0.72)
-                dish_rgb = lerp_color(DISH_FILL[0], DISH_FILL[1], inner)
-                px = over(px, tuple(c / 255 for c in dish_rgb),
-                          cov(d_plate + DISH_R * 0.28) * page_a)
-            # A serving line under the dish.
-            y = 0.26 * PAGE_H
-            line_l = cx - PAGE_W / 2 + 0.24 * PAGE_W
-            d_line = sd_capsule(lx, ly, line_l, y,
-                                line_l + 0.48 * PAGE_W, y, DISH_LINE_R)
-            content_a = cov(d_line) * 0.45
-            content_rgb = ING_COLOR
-
-        if content_a > 0:
-            px = over(px, tuple(c / 255 for c in content_rgb),
-                      content_a * page_a)
-
-    # --- Spine ---------------------------------------------------------------
-    d_spine = sd_rounded_rect(
-        fx - BOOK_CENTER[0], fy - BOOK_CENTER[1],
-        SPINE_HALF_W, SPINE_HALF_H, SPINE_HALF_W,
-    )
-    spine_a = cov(d_spine)
-    if spine_a > 0:
-        px = over(px, tuple(c / 255 for c in SPINE_COLOR), spine_a)
-
-    # --- Fork badge ----------------------------------------------------------
-    bcx, bcy = BADGE_CENTER
-    br = BADGE_RADIUS
-
-    d_disc = sd_circle(fx, fy, bcx, bcy, br)
-    ring_a = cov(abs(d_disc) - br * 0.11) * 0.38
-    if ring_a > 0:
-        px = over(px, tuple(c / 255 for c in RING_COLOR), ring_a)
-
-    disc_a = cov(d_disc)
-    if disc_a > 0:
-        top = bcy - br
-        fill = lerp_color(BADGE_FILL[0], BADGE_FILL[1], (fy - top) / (2 * br))
-        px = over(px, tuple(c / 255 for c in fill), disc_a)
-
-        gloss = sd_circle(fx, fy, bcx, bcy - br * 0.34, br * 0.62)
-        gloss_a = cov(gloss) * 0.14 * disc_a
-        if gloss_a > 0:
-            px = over(px, (1.0, 1.0, 1.0), gloss_a)
-
-        # The fork: three tines fanning from a crossbar into one handle.
-        tines = [
-            sd_capsule(fx, fy,
-                       bcx + br * dx * 0.68, bcy + br * TINE_TOP,
-                       bcx + br * dx * 0.68, bcy + br * (CROSSBAR_Y + 0.10),
-                       FORK_R)
-            for dx in (-TINE_DX, 0.0, TINE_DX)
-        ]
-        crossbar = sd_capsule(fx, fy,
-                              bcx - br * TINE_DX * 0.68, bcy + br * CROSSBAR_Y,
-                              bcx + br * TINE_DX * 0.68, bcy + br * CROSSBAR_Y,
-                              FORK_R)
-        handle = sd_capsule(fx, fy, bcx, bcy + br * CROSSBAR_Y,
-                            bcx, bcy + br * HANDLE_END, FORK_R)
-        d_fork = min(min(tines), crossbar, handle)
-        fork_a = cov(d_fork) * disc_a
-        if fork_a > 0:
-            px = over(px, (1.0, 1.0, 1.0), fork_a)
+            # Outside the leaf's length: distance to the nearest endpoint.
+            end_a = L if a > 0 else -L
+            d_vein = math.hypot(a - end_a, b - vein_b) - VEIN_RADIUS
+        vein_a = cov(d_vein) * body_a
+        if vein_a > 0:
+            px = over(px, tuple(c / 255 for c in VEIN_COLOR), vein_a * 0.55)
 
     return px
 

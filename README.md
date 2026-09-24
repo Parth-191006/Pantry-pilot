@@ -45,6 +45,7 @@ Prefer to build it yourself? [Build from source](#-build-from-source) below.
 | 🛒 **Smart list** | One tap converts any recipe into categorized aisle sections — Produce, Dairy & Eggs, Pantry, Spices… — with a live progress meter. |
 | ✅ **Tactile check-off** | Checkboxes pop with a confetti micro-burst, rows dim and strike through, and finishing the list triggers a full celebration. |
 | ➕ **Add-recipe studio** | Auto-suggested emoji, paste-a-block → split into rows, and a *live aisle preview* that runs the real parser as you type. |
+| ⏱ **Cook-along mode** | One step at a time in huge kitchen-readable text, with a per-step countdown ring (start / pause / resume), a stopwatch for untimed steps, and screen keep-awake so nothing sleeps mid-simmer. Add steps like “Simmer the sauce, 10 min” and the timer builds itself. |
 | 🌙 **Night kitchen** | Hand-tuned dark mode with soft glowing icons (toggleable), a cartoon kitchen hero that switches to a night scene, and aurora-lighted splash. |
 | 🔒 **Private by design** | Everything lives in Hive boxes on your device. Zero network calls, zero analytics, zero ads. |
 
@@ -52,11 +53,13 @@ Prefer to build it yourself? [Build from source](#-build-from-source) below.
 
 ```
 Splash ──▶ Home ──▶ Recipe Detail ──▶ Grocery List
-             │                            │
-             │  cartoon hero · stats ·    │  aisle sections · live meter ·
-             │  quick actions · carousel ·│  check-off micro-interactions ·
-             │  filter pills · shelf      │  confetti at 100%
-             └──▶ Add-Recipe Studio ──────┘
+             │              │              │
+             │  cartoon hero·│ cook along ─▶│  aisle sections · live meter ·
+             │  stats ·      │ step-by-step │  check-off micro-interactions ·
+             │  quick actions│ + timers     │  confetti at 100%
+             │  carousel ·   │              │
+             │  filter pills │              │
+             └──▶ Add-Recipe Studio ───────┘
 ```
 
 Every transition is a 340 ms shared-axis slide+fade+scale; every card
@@ -72,21 +75,22 @@ lib/
 ├── theme/
 │   └── app_theme.dart         # Material 3, light+dark hand-tuned from one seed
 ├── data/
-│   ├── models.dart            # Recipe / GroceryItem / GrocerySection / Category
+│   ├── models.dart            # Recipe / RecipeStep / GroceryItem / Section / Category
 │   ├── ingredient_parser.dart # offline rules → categorized, merged items
 │   ├── emoji_suggest.dart     # offline title → cover-emoji keyword map
-│   ├── seed_recipes.dart      # built-in recipes (works on first offline launch)
+│   ├── seed_recipes.dart      # built-in recipes with timed cook-along steps
 │   └── store.dart             # Hive persistence + AppController (ChangeNotifier)
 ├── ui/
 │   ├── animations.dart        # ALL animation primitives (self-contained)
-│   ├── logo.dart              # vector brand mark (recipe book + fork badge)
+│   ├── logo.dart              # vector brand mark (minimalist leaf)
 │   ├── glow.dart              # glow halos for dark mode (icons/emoji/tiles)
 │   └── greeting.dart          # time-aware greeting + duration formatting
 └── screens/
     ├── splash_screen.dart         # aurora + logo pulse + shiny wordmark → Home
     ├── home_screen.dart           # cartoon hero, stats, quick actions, shelf
-    ├── add_recipe_screen.dart     # the add-recipe studio (paste/rows, preview)
-    ├── recipe_detail_screen.dart  # raw recipe + "Generate grocery list" CTA
+    ├── add_recipe_screen.dart     # the add-recipe studio (paste/rows, steps, preview)
+    ├── recipe_detail_screen.dart  # ingredients + steps + two CTAs
+    ├── cook_along_screen.dart     # one-step-at-a-time cooking with timers + keep-awake
     ├── grocery_list_screen.dart   # the payoff: categories, check-off, confetti
     └── settings_screen.dart       # dark mode, glow, About, data controls
 tool/
@@ -94,11 +98,11 @@ tool/
 └── patch_gradle_signing.py     # wires release signing into the generated build
 ```
 
-**One logo, three surfaces.** `lib/ui/logo.dart` draws the mark — an open
-recipe book with a plated dish and a terracotta fork badge — as vector paths
-(app bar, splash, About). `tool/generate_icons.py` renders the same geometry to
-the launcher PNGs with plain `zlib` + `struct`, so the home-screen icon and the
-in-app logo can never drift apart.
+**One logo, three surfaces.** `lib/ui/logo.dart` draws the mark — a single
+minimalist leaf — as vector paths (app bar, splash, About, empty states).
+`tool/generate_icons.py` renders the same geometry to the launcher PNGs with
+plain `zlib` + `struct`, so the home-screen icon and the in-app logo can never
+drift apart.
 
 ## 🏗 Build from source
 
@@ -125,6 +129,9 @@ flutter test                           # logic + widget tests
 - **Parsing:** 100% rule-based, deterministic, and synchronous — identical input
   always yields identical sections, which keeps entrance animations stable
   across restarts.
+- **Cook-along timers:** wall-clock deadlines driven by a single 1 Hz ticker —
+  pausing can't accumulate drift, and the screen is held awake with
+  `wakelock_plus` (one platform-channel flag, no permissions).
 - **Imagery:** the hero is a `CustomPainter` cartoon scene and the logo is
   vector paths — the APK ships **zero image assets**, and the app makes **zero
   network calls**.

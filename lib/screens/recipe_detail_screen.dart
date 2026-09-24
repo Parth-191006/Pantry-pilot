@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../ui/animations.dart';
 import '../ui/glow.dart';
 import '../ui/greeting.dart';
+import 'cook_along_screen.dart';
 import 'grocery_list_screen.dart';
 
 /// Shows the raw recipe; the CTA runs the offline parser and animates into
@@ -41,6 +42,16 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       sharedAxisRoute(page: const GroceryListScreen()),
     );
     setState(() => _converting = false);
+  }
+
+  Future<void> _startCookAlong() async {
+    // Shared-axis forward beat keeps the two CTAs feeling like one motion.
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      sharedAxisRoute(page: CookAlongScreen(recipe: widget.recipe)),
+    );
+    if (mounted) setState(() {});
   }
 
   Future<void> _confirmDelete() async {
@@ -82,6 +93,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final recipe = widget.recipe;
     final isUserRecipe = recipe.id.startsWith('user_');
 
@@ -184,6 +196,55 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     ),
                   ),
                 ),
+              // Cook-along steps, with their per-step timers. Only shown when
+              // the recipe carries steps — user-pasted recipes may not have any.
+              if (recipe.steps.isNotEmpty) ...[
+                const SizedBox(height: 26),
+                Text('Steps',
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                for (var i = 0; i < recipe.steps.length; i++)
+                  StaggeredEntrance(
+                    index: recipe.ingredients.length + i,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 26,
+                            height: 26,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primaryContainer
+                                  .withValues(alpha: 0.55),
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                            child: Text(
+                              '${i + 1}',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: scheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              recipe.steps[i].text,
+                              style: theme.textTheme.bodyLarge,
+                            ),
+                          ),
+                          if (recipe.steps[i].seconds != null) ...[
+                            const SizedBox(width: 8),
+                            _StepTimeChip(seconds: recipe.steps[i].seconds!),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
             ],
           ),
         ),
@@ -192,18 +253,39 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
           child: Center(
-            // heightFactor: 1 shrink-wraps the sheet vertically, so the CTA
-            // hugs the bottom of the screen instead of floating over the
+            // heightFactor: 1 shrink-wraps the sheet vertically, so the CTAs
+            // hug the bottom of the screen instead of floating over the
             // ingredient list (Center expands into the Scaffold's loose
             // height constraint otherwise).
             heightFactor: 1.0,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
-              child: SizedBox(
-                width: double.infinity,
-                child: BorderBeam(
-                  radius: 20,
-                  child: FilledButton.icon(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (CookAlongScreen.availableFor(recipe))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: FilledButton.tonalIcon(
+                        key: const ValueKey('cook_along'),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: _startCookAlong,
+                        icon: const Icon(Icons.outdoor_grill_rounded),
+                        label: const Text(
+                          'Cook along',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  BorderBeam(
+                    radius: 20,
+                    child: FilledButton.icon(
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -231,10 +313,47 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     onPressed: _generateList,
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Per-step duration chip shown next to timed cook-along steps.
+class _StepTimeChip extends StatelessWidget {
+  const _StepTimeChip({required this.seconds});
+
+  final int seconds;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    final label = m > 0 ? '$m min' : '$s s';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.timer_outlined,
+              size: 12, color: scheme.onSecondaryContainer),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSecondaryContainer,
+                ),
+          ),
+        ],
       ),
     );
   }

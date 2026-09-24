@@ -280,7 +280,7 @@ class _HeroCardState extends State<_HeroCard>
                       top: 16,
                       child: Row(
                         children: [
-                          const RecipePilotMark(size: 20),
+                          const RecipePilotMark(size: 20, bright: true),
                           const SizedBox(width: 7),
                           Text(
                             appName.toUpperCase(),

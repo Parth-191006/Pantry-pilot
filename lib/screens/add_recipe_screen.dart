@@ -39,6 +39,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
   final TextEditingController _title = TextEditingController();
   final TextEditingController _bulk = TextEditingController();
+  final TextEditingController _stepsBulk = TextEditingController();
   final List<TextEditingController> _lines = [];
 
   String _emoji = defaultRecipeEmoji;
@@ -61,6 +62,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   void dispose() {
     _title.dispose();
     _bulk.dispose();
+    _stepsBulk.dispose();
     for (final c in _lines) {
       c.removeListener(_onChanged);
       c.dispose();
@@ -93,6 +95,14 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       .split('\n')
       .map((l) => l.trim())
       .where((l) => l.isNotEmpty)
+      .toList(growable: false);
+
+  /// Steps for cook-along mode: one per line, optional trailing duration.
+  List<RecipeStep> get _steps => _stepsBulk.text
+      .split('\n')
+      .map((l) => l.trim())
+      .where((l) => l.isNotEmpty)
+      .map(RecipeStep.parseLine)
       .toList(growable: false);
 
   bool get _canSave =>
@@ -159,6 +169,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       minutes: _minutes,
       tags: _tags.toList(growable: false),
       ingredients: _ingredients,
+      steps: _steps,
     );
     context.app.addRecipe(recipe); // fire-and-forget persistence
     Navigator.of(context).pop(recipe);
@@ -375,6 +386,54 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                       ),
                       const SizedBox(height: 14),
                       if (_pasteMode) ..._bulkField(theme) else ..._rowFields(),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // ---- Steps (cook-along) -------------------------------------
+              _SectionLabel(
+                icon: Icons.outdoor_grill_rounded,
+                color: const Color(0xFF5C6BC0),
+                title: 'Steps',
+                subtitle: 'One per line — add a duration like “simmer, 10 min” '
+                    'to get a cook-along timer',
+              ),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        key: const ValueKey('steps_paste'),
+                        controller: _stepsBulk,
+                        minLines: 3,
+                        maxLines: 8,
+                        textInputAction: TextInputAction.newline,
+                        decoration: const InputDecoration(
+                          hintText:
+                              'Optional — e.g.\nBoil the pasta, 8 min\nSimmer the sauce, 10 min\nPlate and serve',
+                        ),
+                      ),
+                      if (_steps.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            () {
+                              final timed = _steps.where((s) => s.seconds != null).length;
+                              return '${_steps.length} step${_steps.length == 1 ? '' : 's'}, '
+                                  '$timed with a timer — cook-along will be available';
+                            }(),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

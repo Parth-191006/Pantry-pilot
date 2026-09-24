@@ -91,6 +91,7 @@ class Recipe {
     required this.ingredients,
     this.minutes,
     this.tags = const [],
+    this.steps = const [],
   });
 
   final String id;
@@ -108,6 +109,11 @@ class Recipe {
   /// user-pasted recipes start untagged and match "All" only.
   final List<String> tags;
 
+  /// Ordered cooking instructions. Built-ins ship hand-written steps with
+  /// per-step timings; user recipes may have none (cook-along then stays
+  /// disabled for them).
+  final List<RecipeStep> steps;
+
   Map<String, dynamic> toMap() => {
         'id': id,
         'title': title,
@@ -115,6 +121,7 @@ class Recipe {
         'ingredients': ingredients,
         'minutes': minutes,
         'tags': tags,
+        'steps': [for (final s in steps) s.toMap()],
       };
 
   factory Recipe.fromMap(Map<dynamic, dynamic> map) => Recipe(
@@ -127,5 +134,48 @@ class Recipe {
         tags: (map['tags'] as List? ?? const [])
             .map((e) => '$e')
             .toList(growable: false),
+        steps: (map['steps'] as List? ?? const [])
+            .whereType<Map>()
+            .map((m) => RecipeStep.fromMap(Map<dynamic, dynamic>.from(m)))
+            .toList(growable: false),
       );
+}
+
+/// One cook-along instruction with an optional countdown. `seconds == null`
+/// means "work at your own pace" — the step card shows a hand timer instead
+/// of a number; a stopwatch-style chip still tracks elapsed time.
+@immutable
+class RecipeStep {
+  const RecipeStep({required this.text, this.seconds});
+
+  final String text;
+  final int? seconds;
+
+  Map<String, dynamic> toMap() => {'text': text, 'seconds': seconds};
+
+  factory RecipeStep.fromMap(Map<dynamic, dynamic> map) => RecipeStep(
+        text: (map['text'] ?? '') as String,
+        seconds: map['seconds'] as int?,
+      );
+
+  /// Matches a trailing duration like "…, 10 min" / "… 45 seconds" / "… 2 h".
+  static final RegExp _trailingDuration = RegExp(
+    r'^(.*?)[,;\s]*\b(\d+)\s*(hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\.?$',
+    caseSensitive: false,
+  );
+
+  /// Parses a user-typed step line: a trailing duration becomes the cook-
+  /// along timer ("Simmer the sauce, 10 min" → text "Simmer the sauce",
+  /// 600 s); anything else stays plain text cooked at your own pace.
+  static RecipeStep parseLine(String raw) {
+    final line = raw.trim();
+    final m = _trailingDuration.firstMatch(line);
+    if (m == null) return RecipeStep(text: line);
+    final text = m.group(1)!.trim();
+    final n = int.parse(m.group(2)!);
+    final unit = m.group(3)!.toLowerCase();
+    final seconds =
+        unit.startsWith('h') ? n * 3600 : (unit.startsWith('s') ? n : n * 60);
+    return RecipeStep(text: text.isEmpty ? line : text, seconds: seconds);
+  }
 }
