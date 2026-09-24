@@ -174,16 +174,25 @@ void main() {
     // Tap by key: during the 420ms AnimatedSwitcher hand-off the outgoing
     // step view still holds a "Next step" label, which would make a text
     // finder ambiguous.
+    //
+    // Three pumps, not one long pump: the swap frame builds first (starting
+    // the outgoing reverse + incoming forward animations), and only later
+    // pumps tick the reverse to zero so the old view is REMOVED from the
+    // tree. One pump(600) leaves both step views mounted forever.
     await tester.tap(find.byKey(const ValueKey('cook_next')));
-    await tester.pump(const Duration(milliseconds: 600)); // switcher + reset
+    await tester.pump(); // swap frame
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300)); // old view removed
     expect(find.text('Step 2 of 8'), findsOneWidget);
     expect(find.byKey(CookAlongScreen.stepKey), findsOneWidget);
     expect(find.text('Cook the pasta until just shy of al dente — it finishes in the sauce.'),
         findsOneWidget);
 
-    // Back returns to step 1, timers fresh.
+    // Back returns to step 1, timers fresh (same 3-pump switcher hand-off).
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));
-    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Step 1 of 8'), findsOneWidget);
     expect(find.text('05:00'), findsOneWidget); // fresh, idle again
     // The expiry SnackBar hides itself after 4 s — pump past it so the test
@@ -207,13 +216,15 @@ void main() {
       recipe: controller.recipes.firstWhere((r) => r.id == 'r_garlic_pasta'),
     );
 
-    // Walk through all eight steps without touching the timers. Tap by key:
-    // the outgoing step view lingers in the AnimatedSwitcher for a beat, so
-    // its identical "Next step" label would make a text finder ambiguous.
+    // Walk through all eight steps without touching the timers. Tap by key,
+    // and pump the AnimatedSwitcher hand-off to completion: one swap frame
+    // plus two ticks so the outgoing step view is actually removed.
     for (var i = 1; i <= 8; i++) {
       expect(find.text('Step $i of 8'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('cook_next')));
-      await tester.pump(const Duration(milliseconds: 600)); // switcher beat
+      await tester.pump(); // swap frame
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
     }
 
     expect(find.byKey(const ValueKey('cook_done')), findsOneWidget);
