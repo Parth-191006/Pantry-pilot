@@ -21,6 +21,10 @@ AppController makeController() => AppController(
 /// The surface is deliberately tall (540×1500 logical): the dashboard stacks a
 /// hero, stats strip, quick actions and a carousel above the shelf, so cards
 /// have to be on screen for taps to land.
+///
+/// flutter_test runs every test body inside fake_async's advancing clock
+/// zone, so `clock.now()` (used by the cook-along deadlines) advances with
+/// the pumps below — no extra withClock wrapper needed or wanted.
 Future<void> pumpIntoHome(WidgetTester tester, RecipePilotApp app) async {
   tester.view.physicalSize = const Size(540, 1500);
   tester.view.devicePixelRatio = 1.0;
