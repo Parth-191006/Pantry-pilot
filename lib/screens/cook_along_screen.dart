@@ -662,6 +662,7 @@ class _NavButtons extends StatelessWidget {
           child: SizedBox(
             height: 54,
             child: FilledButton(
+              key: const ValueKey('cook_next'),
               style: FilledButton.styleFrom(
                 backgroundColor: isLast ? AppTheme.checkGreen : scheme.primary,
                 foregroundColor: Colors.white,

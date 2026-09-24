@@ -171,8 +171,11 @@ void main() {
     expect(find.text('Restart'), findsOneWidget);
 
     // Next step (untimed) resets the header and shows the stopwatch chip.
-    await tester.tap(find.text('Next step'));
-    await tester.pump(const Duration(milliseconds: 500)); // switcher + reset
+    // Tap by key: during the 420ms AnimatedSwitcher hand-off the outgoing
+    // step view still holds a "Next step" label, which would make a text
+    // finder ambiguous.
+    await tester.tap(find.byKey(const ValueKey('cook_next')));
+    await tester.pump(const Duration(milliseconds: 600)); // switcher + reset
     expect(find.text('Step 2 of 8'), findsOneWidget);
     expect(find.byKey(CookAlongScreen.stepKey), findsOneWidget);
     expect(find.text('Cook the pasta until just shy of al dente — it finishes in the sauce.'),
@@ -180,7 +183,7 @@ void main() {
 
     // Back returns to step 1, timers fresh.
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 600));
     expect(find.text('Step 1 of 8'), findsOneWidget);
     expect(find.text('05:00'), findsOneWidget); // fresh, idle again
     // The expiry SnackBar hides itself after 4 s — pump past it so the test
@@ -204,11 +207,13 @@ void main() {
       recipe: controller.recipes.firstWhere((r) => r.id == 'r_garlic_pasta'),
     );
 
-    // Walk through all eight steps without touching the timers.
+    // Walk through all eight steps without touching the timers. Tap by key:
+    // the outgoing step view lingers in the AnimatedSwitcher for a beat, so
+    // its identical "Next step" label would make a text finder ambiguous.
     for (var i = 1; i <= 8; i++) {
       expect(find.text('Step $i of 8'), findsOneWidget);
-      await tester.tap(find.text(i == 8 ? 'Done cooking 🎉' : 'Next step'));
-      await tester.pump(const Duration(milliseconds: 500)); // switcher beat
+      await tester.tap(find.byKey(const ValueKey('cook_next')));
+      await tester.pump(const Duration(milliseconds: 600)); // switcher beat
     }
 
     expect(find.byKey(const ValueKey('cook_done')), findsOneWidget);
