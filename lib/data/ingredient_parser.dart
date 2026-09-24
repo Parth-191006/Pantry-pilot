@@ -92,10 +92,12 @@ class IngredientParser {
       items.addAll(_parseSegment(segment.text, raw));
     }
 
-    // Not one usable row came out of the segments: the commas probably joined
-    // adjectives rather than prep text ("4 skinless, boneless chicken
-    // thighs"). Retry the whole line as a single run-on name before flagging.
-    if (line.contains(',') && !items.any((i) => !i.needsReview)) {
+    // Run-on comma names: "4 skinless, boneless chicken thighs, trimmed"
+    // splits into fragments ("4 skinless" has no name of its own), so when any
+    // segment degraded to a review row, try the whole line as ONE name first.
+    // If that reads cleanly it replaces the fragments; otherwise the review
+    // rows stay (e.g. "1 cup flour, plus 2 tbsp for dusting" keeps its tail).
+    if (line.contains(',') && items.any((i) => i.needsReview)) {
       final retry = _parseSingle(line, raw);
       if (retry != null && !retry.needsReview) items = <GroceryItem>[retry];
     }

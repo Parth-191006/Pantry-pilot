@@ -1,4 +1,6 @@
 import 'dart:async';
+
+import 'package:clock/clock.dart';
 import 'dart:math' as math;
 import 'dart:ui' show FontFeature;
 
@@ -113,7 +115,7 @@ class _CookAlongScreenState extends State<CookAlongScreen> {
   void _onTick() {
     if (!mounted) return;
     final end = _countdownEnd;
-    if (end != null && DateTime.now().isBefore(end)) {
+    if (end != null && clock.now().isBefore(end)) {
       setState(() {}); // repaint remaining time
       return;
     }
@@ -135,7 +137,7 @@ class _CookAlongScreenState extends State<CookAlongScreen> {
   void _startTimer() {
     setState(() {
       _started = true;
-      final now = DateTime.now();
+      final now = clock.now();
       if (_timed) {
         // After an expiry, Start re-runs the step's full countdown.
         if (_countdownRemaining == Duration.zero) {
@@ -150,7 +152,7 @@ class _CookAlongScreenState extends State<CookAlongScreen> {
 
   void _pauseTimer() {
     setState(() {
-      final now = DateTime.now();
+      final now = clock.now();
       final rem = _countdownEnd?.difference(now);
       _countdownRemaining = rem == null || rem.isNegative ? Duration.zero : rem;
       _countdownEnd = null;
@@ -172,7 +174,7 @@ class _CookAlongScreenState extends State<CookAlongScreen> {
     _stopwatchElapsed = Duration.zero;
     _started = false;
     if (!_timed) {
-      _stopwatchStart = DateTime.now();
+      _stopwatchStart = clock.now();
       _started = true;
       _startTicker();
     } else {
@@ -200,7 +202,7 @@ class _CookAlongScreenState extends State<CookAlongScreen> {
   Duration get _remaining {
     final end = _countdownEnd;
     if (end != null) {
-      final d = end.difference(DateTime.now());
+      final d = end.difference(clock.now());
       return d.isNegative ? Duration.zero : d;
     }
     return _countdownRemaining;
@@ -209,7 +211,7 @@ class _CookAlongScreenState extends State<CookAlongScreen> {
   Duration get _elapsed {
     final start = _stopwatchStart;
     if (start != null) {
-      return _stopwatchElapsed + DateTime.now().difference(start);
+      return _stopwatchElapsed + clock.now().difference(start);
     }
     return _stopwatchElapsed;
   }

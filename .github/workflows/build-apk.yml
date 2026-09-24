@@ -139,12 +139,25 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       # Surface the failing test detail as an error annotation (readable via
-      # the API without authentication).
+      # the API without authentication). The tail alone hides failures that
+      # happened early in the run, so failing test names are listed too.
       - name: Dump test failures to annotations
         if: failure()
         run: |
           TAIL=$(tail -80 test_output.log | sed ':a;N;$!ba;s/\n/%0A/g')
           echo "::error::TESTLOG::$TAIL"
+          NAMES=$(grep -E '\[E\]' test_output.log | sed ':a;N;$!ba;s/\n/%0A/g')
+          if [ -n "$NAMES" ]; then echo "::error::FAILEDTESTS::$NAMES"; fi
+
+      # Full log for post-mortem (survives even when the annotation tail
+      # truncates, and is downloadable from the run page).
+      - name: Upload test log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log-${{ github.run_number }}
+          path: test_output.log
+          if-no-files-found: ignore
 
       - name: Build release APK
         run: |

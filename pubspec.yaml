@@ -19,6 +19,10 @@ dependencies:
   # Keeps the screen on during cook-along mode (per-step timers). Pure
   # platform-channel plugin — no permissions or native setup needed.
   wakelock_plus: ^1.2.8
+  # Injectable clock: production always sees the real wall clock; widget
+  # tests can fake time so wall-clock-deadline countdowns behave under
+  # fake_async. Transitive via flutter_test, so zero extra APK bytes.
+  clock: ^1.1.1
 
 dev_dependencies:
   flutter_test:
